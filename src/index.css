@@ -1,0 +1,12 @@
+/*
+ * Estilos globales de TextilApp.
+ * TODO #2: definir paleta textil (variables CSS), tipografía y ajustes de Bootstrap.
+ * Regla: usar clases de Bootstrap primero; aquí solo lo que Bootstrap no cubre.
+ */
+:root {
+  --textil-primario: #0d6efd;
+}
+
+body {
+  min-height: 100vh;
+}

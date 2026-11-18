@@ -1,0 +1,16 @@
+{
+  "prendas": [
+    {
+      "id": "1",
+      "codigo": "POL-001",
+      "nombre": "Polo básico cuello redondo",
+      "tipo": "Polo",
+      "tela": "Algodón pima",
+      "talla": "M",
+      "color": "Blanco",
+      "precio": 39.9,
+      "stock": 25,
+      "fechaRegistro": "2026-11-18"
+    }
+  ]
+}
