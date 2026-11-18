@@ -1,9 +1,13 @@
-// Indicador de carga reutilizable. Usado por Lista (#16) y Home (#11).
+// Indicador de carga reutilizable. Usado por Lista, Home y Registro (modo edición).
 function Loading({ texto = 'Loading...' }) {
   return (
-    <div className="d-flex align-items-center gap-2 py-4" role="status">
-      <div className="spinner-border spinner-border-sm" aria-hidden="true" />
-      <span>{texto}</span>
+    <div
+      className="d-flex flex-column align-items-center justify-content-center gap-3 py-5 text-body-secondary"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="spinner-border text-primary" aria-hidden="true" />
+      <span className="fw-medium">{texto}</span>
     </div>
   )
 }
