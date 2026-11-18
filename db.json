@@ -10,7 +10,139 @@
       "color": "Blanco",
       "precio": 39.9,
       "stock": 25,
-      "fechaRegistro": "2026-11-18"
+      "fechaRegistro": "2026-10-03"
+    },
+    {
+      "id": "2",
+      "codigo": "POL-002",
+      "nombre": "Polo piqué manga corta",
+      "tipo": "Polo",
+      "tela": "Algodón",
+      "talla": "L",
+      "color": "Azul marino",
+      "precio": 45.5,
+      "stock": 8,
+      "fechaRegistro": "2026-10-07"
+    },
+    {
+      "id": "3",
+      "codigo": "CAM-001",
+      "nombre": "Camisa oxford manga larga",
+      "tipo": "Camisa",
+      "tela": "Algodón",
+      "talla": "M",
+      "color": "Celeste",
+      "precio": 89.9,
+      "stock": 14,
+      "fechaRegistro": "2026-10-12"
+    },
+    {
+      "id": "4",
+      "codigo": "CAM-002",
+      "nombre": "Camisa de lino casual",
+      "tipo": "Camisa",
+      "tela": "Lino",
+      "talla": "XL",
+      "color": "Beige",
+      "precio": 119,
+      "stock": 5,
+      "fechaRegistro": "2026-10-18"
+    },
+    {
+      "id": "5",
+      "codigo": "PAN-001",
+      "nombre": "Jean clásico corte recto",
+      "tipo": "Pantalón",
+      "tela": "Denim",
+      "talla": "L",
+      "color": "Azul índigo",
+      "precio": 129.9,
+      "stock": 20,
+      "fechaRegistro": "2026-10-22"
+    },
+    {
+      "id": "6",
+      "codigo": "PAN-002",
+      "nombre": "Pantalón chino slim fit",
+      "tipo": "Pantalón",
+      "tela": "Drill",
+      "talla": "S",
+      "color": "Caqui",
+      "precio": 99.9,
+      "stock": 12,
+      "fechaRegistro": "2026-10-27"
+    },
+    {
+      "id": "7",
+      "codigo": "CAS-001",
+      "nombre": "Casaca denim clásica",
+      "tipo": "Casaca",
+      "tela": "Denim",
+      "talla": "XL",
+      "color": "Azul deslavado",
+      "precio": 159.9,
+      "stock": 3,
+      "fechaRegistro": "2026-11-02"
+    },
+    {
+      "id": "8",
+      "codigo": "CAS-002",
+      "nombre": "Casaca cortaviento impermeable",
+      "tipo": "Casaca",
+      "tela": "Poliéster",
+      "talla": "XXL",
+      "color": "Negro",
+      "precio": 139.5,
+      "stock": 9,
+      "fechaRegistro": "2026-11-05"
+    },
+    {
+      "id": "9",
+      "codigo": "VES-001",
+      "nombre": "Vestido de lino veraniego",
+      "tipo": "Vestido",
+      "tela": "Lino",
+      "talla": "S",
+      "color": "Verde olivo",
+      "precio": 149.9,
+      "stock": 11,
+      "fechaRegistro": "2026-11-09"
+    },
+    {
+      "id": "10",
+      "codigo": "PLR-001",
+      "nombre": "Polera con capucha básica",
+      "tipo": "Polera",
+      "tela": "Algodón",
+      "talla": "M",
+      "color": "Gris jaspeado",
+      "precio": 79.9,
+      "stock": 30,
+      "fechaRegistro": "2026-11-12"
+    },
+    {
+      "id": "11",
+      "codigo": "PLR-002",
+      "nombre": "Polera cuello alto de lana",
+      "tipo": "Polera",
+      "tela": "Lana",
+      "talla": "XS",
+      "color": "Guinda",
+      "precio": 179,
+      "stock": 6,
+      "fechaRegistro": "2026-11-15"
+    },
+    {
+      "id": "12",
+      "codigo": "SHO-001",
+      "nombre": "Short deportivo de secado rápido",
+      "tipo": "Short",
+      "tela": "Poliéster",
+      "talla": "M",
+      "color": "Negro",
+      "precio": 49.9,
+      "stock": 18,
+      "fechaRegistro": "2026-11-17"
     }
   ]
 }
