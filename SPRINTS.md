@@ -33,14 +33,14 @@ Escribe tu usuario de GitHub en la tabla del equipo la primera vez.
 
 | Estado | Issue | Dev | Tarea |
 |---|---|---|---|
-| [ ] | #1 | Dev 1 | Layout principal: Header con título y estructura en `App.jsx` |
-| [ ] | #2 | Dev 1 | Estilos globales y paleta textil |
-| [ ] | #3 | Dev 2 | Navbar Bootstrap con `NavLink` y menú responsive |
-| [ ] | #4 | Dev 2 | Footer del sitio |
-| [ ] | #5 | Dev 3 | Formulario controlado en `Registro.jsx` |
-| [ ] | #6 | Dev 4 | Contexto global `AppContext` |
-| [ ] | #7 | Dev 5 | `db.json` con datos de prueba |
-| [ ] | #8 | Dev 5 | `services/apiService.js` (getAll, getById, add, update, remove) |
+| [x] | #1 | Dev 1 | Layout principal: Header con título y estructura en `App.jsx` |
+| [x] | #2 | Dev 1 | Estilos globales y paleta textil |
+| [x] | #3 | Dev 2 | Navbar Bootstrap con `NavLink` y menú responsive |
+| [x] | #4 | Dev 2 | Footer del sitio |
+| [x] | #5 | Dev 3 | Formulario controlado en `Registro.jsx` |
+| [x] | #6 | Dev 4 | Contexto global `AppContext` |
+| [x] | #7 | Dev 5 | `db.json` con datos de prueba |
+| [x] | #8 | Dev 5 | `services/apiService.js` (getAll, getById, add, update, remove) |
 
 ## Sprint 2 · 24/11 – 28/11
 
@@ -48,14 +48,14 @@ Escribe tu usuario de GitHub en la tabla del equipo la primera vez.
 
 | Estado | Issue | Dev | Tarea |
 |---|---|---|---|
-| [ ] | #9 | Dev 1 | Página `NotFound` (404) |
-| [ ] | #10 | Dev 1 | Verificar CI y README de instalación |
-| [ ] | #11 | Dev 2 | Home con resumen del inventario |
-| [ ] | #12 | Dev 3 | Validaciones: alertas y estilos condicionales |
-| [ ] | #13 | Dev 3 | `useRef`: foco automático en el formulario |
-| [ ] | #14 | Dev 4 | Custom hook `useLocalStorage` y persistencia |
-| [ ] | #15 | Dev 4 | Componente `AlertMessage` reutilizable |
-| [ ] | #16 | Dev 5 | `Lista.jsx`: tabla, `Loading...` y botón Eliminar |
+| [x] | #9 | Dev 1 | Página `NotFound` (404) |
+| [x] | #10 | Dev 1 | Verificar CI y README de instalación |
+| [x] | #11 | Dev 2 | Home con resumen del inventario |
+| [x] | #12 | Dev 3 | Validaciones: alertas y estilos condicionales |
+| [x] | #13 | Dev 3 | `useRef`: foco automático en el formulario |
+| [x] | #14 | Dev 4 | Custom hook `useLocalStorage` y persistencia |
+| [x] | #15 | Dev 4 | Componente `AlertMessage` reutilizable |
+| [x] | #16 | Dev 5 | `Lista.jsx`: tabla, `Loading...` y botón Eliminar |
 
 ## Sprint 3 · 29/11 – 03/12
 
@@ -63,20 +63,20 @@ Escribe tu usuario de GitHub en la tabla del equipo la primera vez.
 
 | Estado | Issue | Dev | Tarea |
 |---|---|---|---|
-| [ ] | #17 | Dev 2 | Botón de tema claro/oscuro con `useContext` |
-| [ ] | #18 | Dev 3 | Extraer `PrendaForm` reutilizable vía `props` |
-| [ ] | #19 | Dev 3 | Guardar y editar: `add()` y `update()` desde Registro |
-| [ ] | #20 | Dev 4 | Login simulado y usuario en la Navbar |
-| [ ] | #21 | Dev 5 | Modal de detalle y de confirmación de eliminación |
-| [ ] | #22 | Dev 5 | Filtro, búsqueda y orden en la Lista |
+| [x] | #17 | Dev 2 | Botón de tema claro/oscuro con `useContext` |
+| [x] | #18 | Dev 3 | Extraer `PrendaForm` reutilizable vía `props` |
+| [x] | #19 | Dev 3 | Guardar y editar: `add()` y `update()` desde Registro |
+| [x] | #20 | Dev 4 | Login simulado y usuario en la Navbar |
+| [x] | #21 | Dev 5 | Modal de detalle y de confirmación de eliminación |
+| [x] | #22 | Dev 5 | Filtro, búsqueda y orden en la Lista |
 
 ## Entrega · 04/12 – 05/12
 
 | Estado | Issue | Dev | Tarea |
 |---|---|---|---|
-| [ ] | #23 | Dev 1 | Integración final y pruebas cruzadas |
-| [ ] | #24 | Dev 2 | Capturas de pantalla |
-| [ ] | #25 | Dev 4 | Documento PDF de entrega |
+| [x] | #23 | Dev 1 | Integración final y pruebas cruzadas |
+| [x] | #24 | Dev 2 | Capturas de pantalla |
+| [x] | #25 | Dev 4 | Documento PDF de entrega |
 
 ---
 
