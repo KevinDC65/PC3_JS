@@ -1,10 +1,35 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" data-bs-theme="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="TextilApp: registro e inventario de prendas textiles con control de stock."
+    />
     <title>TextilApp · Inventario de prendas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400..700&display=swap"
+    />
+    <script>
+      // Aplica el tema guardado antes de pintar para evitar un destello del tema claro.
+      try {
+        var temaGuardado = JSON.parse(localStorage.getItem('textilapp:tema'))
+        var tema =
+          temaGuardado === 'dark' || temaGuardado === 'light'
+            ? temaGuardado
+            : window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+        document.documentElement.setAttribute('data-bs-theme', tema)
+      } catch (e) {
+        document.documentElement.setAttribute('data-bs-theme', 'light')
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
