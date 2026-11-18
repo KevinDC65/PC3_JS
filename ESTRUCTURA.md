@@ -8,6 +8,8 @@ PC3_JS/
 │   └── pull_request_template.md
 ├── docs/
 │   ├── capturas/              Capturas de pantalla para la entrega (#24)
+│   ├── informe/informe.html   Fuente editable del informe (#25)
+│   ├── TextilApp_PC3.pdf      Informe de entrega (#25)
 │   └── ENTREGA.md             Guía del PDF final (#25)
 ├── public/                    Archivos estáticos (favicon)
 ├── src/
@@ -17,7 +19,10 @@ PC3_JS/
 │   │   ├── Footer.jsx         Pie de página (#4)
 │   │   ├── Loading.jsx        Indicador "Loading..." (listo)
 │   │   ├── AlertMessage.jsx   Alertas de éxito/error (#15)
-│   │   └── PrendaForm.jsx     Formulario de prenda reutilizable vía props (#18)
+│   │   ├── PrendaForm.jsx     Formulario de prenda reutilizable vía props (#18)
+│   │   ├── Modal.jsx          Base de modales: portal, Esc, foco y bloqueo de scroll (#21)
+│   │   ├── ConfirmModal.jsx   Confirmación de eliminación y detalle de prenda (#21)
+│   │   └── LoginModal.jsx     Inicio de sesión simulado (#20)
 │   ├── pages/                 Una por ruta
 │   │   ├── Home.jsx           "/"            (#11)
 │   │   ├── Registro.jsx       "/registro" y "/registro/:id" (#5, #12, #13, #18, #19)
@@ -29,6 +34,11 @@ PC3_JS/
 │   │   └── useLocalStorage.js Custom hook de persistencia (#14)
 │   ├── services/
 │   │   └── apiService.js      Único lugar que habla con la API (#8)
+│   ├── constants/
+│   │   └── prendas.js         Tipos, telas, tallas, prenda vacía y stock mínimo (#5)
+│   ├── utils/
+│   │   ├── validarPrenda.js   Validación y normalización de prendas (#12)
+│   │   └── formato.js         Formato de precios y fechas
 │   ├── App.jsx                Layout + definición de rutas
 │   ├── main.jsx               Punto de entrada: Bootstrap, Router, AppProvider
 │   └── index.css              Estilos globales (#2)
