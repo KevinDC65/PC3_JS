@@ -3,8 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+  # Sin filtro de rama: también valida PRs encadenados (base distinta de main).
   pull_request:
-    branches: [main]
 
 jobs:
   autoria:
