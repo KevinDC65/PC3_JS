@@ -51,6 +51,33 @@ Levanta a la vez:
 | `npm run format` | Formatea `src/` con Prettier |
 | `npm run build` | Compila para producción en `dist/` |
 
+## Funcionalidades
+
+- **Inicio:** resumen del inventario (prendas, unidades, stock bajo, valor total), prendas por reponer y unidades por tipo.
+- **Registro:** formulario controlado con validación en vivo, foco automático, vista previa de etiqueta y borrador guardado en `localStorage`.
+- **Edición:** `/registro/:id` carga la prenda y guarda con `PUT`.
+- **Lista:** búsqueda, filtros por tipo y talla, orden, detalle en modal y eliminación con confirmación.
+- **Sesión y tema:** inicio de sesión simulado y tema claro/oscuro compartidos con `useContext` y persistidos.
+- **Estados:** indicador `Loading...`, mensajes de éxito y error, página 404 y vista adaptada a móvil.
+
+![Inicio](docs/capturas/01-home.png)
+
+## Problemas comunes
+
+| Síntoma | Solución |
+|---|---|
+| "No se pudo conectar con el servidor" | La API no está levantada: usa `npm run dev:all` o `npm run server` |
+| `Port 3001 is already in use` | Cierra el otro json-server o cambia el puerto en `package.json` y en `.env` (`VITE_API_URL`) |
+| Vite usa otro puerto (5174…) | El 5173 está ocupado; la app funciona igual en el puerto que indique la consola |
+| Error de sintaxis al ejecutar Vite | Actualiza Node a 20.19 o superior |
+| Los datos de prueba se modificaron | `git checkout db.json` restaura las 12 prendas originales |
+
+## Entrega
+
+- Informe: [docs/TextilApp_PC3.pdf](docs/TextilApp_PC3.pdf) (fuente editable en [docs/informe/informe.html](docs/informe/informe.html)).
+- Capturas: [docs/capturas/](docs/capturas/).
+- Datos de prueba: [db.json](db.json).
+
 ## Documentación del proyecto
 
 | Archivo | Para qué sirve |

@@ -27,6 +27,15 @@ Nombre: `NN-descripcion.png`, a 1280 px de ancho (y una móvil a 375 px).
 12. `12-404.png` — Página no encontrada.
 13. `13-db-json.png` — `http://localhost:3001/prendas` en el navegador.
 
+## Cómo regenerar el PDF
+
+El PDF se exporta desde [informe/informe.html](informe/informe.html). Para actualizarlo (por ejemplo, para completar docente e integrantes en la portada):
+
+1. Edita `docs/informe/informe.html`.
+2. Sirve la carpeta `docs/` con cualquier servidor estático (por ejemplo, `npx serve docs`) y abre `/informe/informe.html` en Chrome o Edge.
+3. Imprime con `Ctrl + P` → *Guardar como PDF*, tamaño A4, márgenes predeterminados y "Gráficos de fondo" activado.
+4. Guarda el resultado como `docs/TextilApp_PC3.pdf`.
+
 ## Contenido del PDF (#25)
 
 Breve (6–10 páginas), en español:

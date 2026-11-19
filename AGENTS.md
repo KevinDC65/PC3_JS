@@ -50,7 +50,7 @@ npm run build        # debe compilar
 | `src/services/apiService.js` | Dev 5 | Único punto de acceso HTTP |
 | `db.json` | Dev 5 | Datos de prueba, colección `prendas` |
 
-Los archivos stub tienen comentarios `// TODO #n` que indican qué issue los completa. Al terminar una issue, **borra su TODO**.
+Otros módulos: `src/constants/prendas.js` (listas y constantes), `src/utils/validarPrenda.js` (`validarPrenda`, `normalizarPrenda`), `src/utils/formato.js` (`formatearPrecio`, `formatearFecha`, `hoyISO`), `src/components/Modal.jsx` (base de modales), `ConfirmModal.jsx` y `LoginModal.jsx`. Si dejas trabajo pendiente, márcalo con `// TODO #n` referenciando su issue.
 
 ## Modelo de datos `Prenda`
 
