@@ -50,7 +50,7 @@ npm run build        # debe compilar
 | `src/services/apiService.js` | Dev 5 | Único punto de acceso HTTP |
 | `db.json` | Dev 5 | Datos de prueba, colección `prendas` |
 
-Otros módulos: `src/constants/prendas.js` (listas y constantes), `src/utils/validarPrenda.js` (`validarPrenda`, `normalizarPrenda`), `src/utils/formato.js` (`formatearPrecio`, `formatearFecha`, `hoyISO`), `src/components/Modal.jsx` (base de modales), `ConfirmModal.jsx` y `LoginModal.jsx`. Si dejas trabajo pendiente, márcalo con `// TODO #n` referenciando su issue.
+Otros módulos: `src/constants/prendas.js` (listas y constantes), `src/utils/validarPrenda.js` (`validarPrenda`, `normalizarPrenda`), `src/utils/formato.js` (`formatearPrecio`, `formatearFecha`, `hoyISO`), `src/utils/colores.js` y `src/utils/inventario.js`. El shell de la app (barra lateral, paleta Ctrl+K, atajos, panel lateral, toasts) vive en `ShellProvider`/`ToastProvider` con sus hooks `useShell`, `useToast`, `useAtajosTeclado`, `useCapaModal` y `useGuardiaCambios`. Los estilos están en `src/styles/*.css` y los tokens en `src/index.css`; el sistema visual se documenta en [DESIGN.md](DESIGN.md). El mapa completo está en [ESTRUCTURA.md](ESTRUCTURA.md). Si dejas trabajo pendiente, márcalo con `// TODO #n` referenciando su issue.
 
 ## Modelo de datos `Prenda`
 

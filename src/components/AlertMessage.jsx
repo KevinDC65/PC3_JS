@@ -12,7 +12,12 @@ import { useEffect, useRef } from 'react'
  *   />
  *
  * Props: tipo (success | danger | warning | info), mensaje, onClose (muestra el botón
- * de cerrar) y autoCerrar (milisegundos, opcional). Si no hay mensaje, no se renderiza.
+ * de cerrar), autoCerrar (milisegundos, opcional) y anunciar (por defecto true: la alerta
+ * se anuncia a lectores de pantalla; los toasts lo desactivan porque su contenedor ya lo
+ * hace). Si no hay mensaje, no se renderiza.
+ *
+ * Se usa en línea para mensajes persistentes (errores de carga, validación general) y
+ * dentro de los toasts para las confirmaciones breves.
  */
 
 const ICONOS = {
@@ -22,7 +27,15 @@ const ICONOS = {
   info: 'bi-info-circle-fill',
 }
 
-function AlertMessage({ tipo = 'info', mensaje, onClose, autoCerrar, children, className = '' }) {
+function AlertMessage({
+  tipo = 'info',
+  mensaje,
+  onClose,
+  autoCerrar,
+  children,
+  className = '',
+  anunciar = true,
+}) {
   // Se guarda la última versión de onClose para que el temporizador no se reinicie
   // cada vez que el componente padre vuelve a renderizar.
   const onCloseRef = useRef(onClose)
@@ -44,12 +57,12 @@ function AlertMessage({ tipo = 'info', mensaje, onClose, autoCerrar, children, c
 
   return (
     <div
-      className={`alert alert-${tipoValido} d-flex align-items-start gap-2 ${onClose ? 'alert-dismissible' : ''} ${className}`}
-      role="alert"
-      aria-live={urgente ? 'assertive' : 'polite'}
+      className={`alert alert-${tipoValido} tx-alerta d-flex align-items-start gap-2 ${onClose ? 'alert-dismissible' : ''} ${className}`}
+      role={anunciar ? 'alert' : undefined}
+      aria-live={anunciar ? (urgente ? 'assertive' : 'polite') : undefined}
     >
-      <i className={`bi ${ICONOS[tipoValido]} flex-shrink-0`} aria-hidden="true" />
-      <div className="flex-grow-1">
+      <i className={`bi ${ICONOS[tipoValido]} flex-shrink-0 tx-alerta-icono`} aria-hidden="true" />
+      <div className="flex-grow-1 tx-alerta-texto">
         {mensaje}
         {children}
       </div>

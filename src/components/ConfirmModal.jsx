@@ -21,11 +21,13 @@ import Modal from './Modal.jsx'
 function ConfirmModal({
   abierto,
   titulo,
+  descripcion,
   children,
   textoConfirmar = 'Confirmar',
   iconoConfirmar,
   varianteConfirmar = 'primary',
   textoCancelar = 'Cancelar',
+  textoCargando = 'Procesando...',
   cargando = false,
   tamano,
   onConfirm,
@@ -57,7 +59,7 @@ function ConfirmModal({
           ) : (
             iconoConfirmar && <i className={`bi ${iconoConfirmar}`} aria-hidden="true" />
           )}
-          {cargando ? 'Procesando...' : textoConfirmar}
+          {cargando ? textoCargando : textoConfirmar}
         </button>
       )}
     </>
@@ -68,6 +70,7 @@ function ConfirmModal({
       abierto={abierto}
       onCerrar={onCancel}
       titulo={titulo}
+      descripcion={descripcion}
       pie={pie}
       tamano={tamano}
       bloquearCierre={cargando}

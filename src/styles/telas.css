@@ -1,0 +1,161 @@
+/*
+ * Muestras de color y texturas de tela. El color llega en --muestra (calculado en
+ * utils/colores.js) y cada tela dibuja su ligamento con gradientes que dejan pasar ese
+ * color: sarga del denim y el drill, trama irregular del lino, punto de la lana, tafetán
+ * fino del algodón y la pima, brillo y ripstop del poliéster.
+ * Los hilos usan tonos claros u oscuros según la luminosidad del color de fondo.
+ */
+
+.tx-muestra {
+  --muestra: #d6d5cf;
+  --hilo-claro: rgba(255, 255, 255, 0.16);
+  --hilo-oscuro: rgba(0, 0, 0, 0.16);
+  --brillo: rgba(255, 255, 255, 0.14);
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: var(--muestra);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.tx-muestra[data-claro='true'] {
+  --hilo-claro: rgba(255, 255, 255, 0.55);
+  --hilo-oscuro: rgba(40, 32, 20, 0.1);
+  --brillo: rgba(255, 255, 255, 0.35);
+}
+
+[data-bs-theme='dark'] .tx-muestra {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.tx-muestra-punto {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+}
+
+.tx-muestra-chip {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.4375rem;
+}
+
+.tx-muestra-panel {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+/* Algodón: tafetán fino. */
+.tx-tela-algodon {
+  background-image:
+    repeating-linear-gradient(0deg, var(--hilo-oscuro) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, var(--hilo-claro) 0 1px, transparent 1px 3px);
+}
+
+/* Algodón pima: tafetán más fino con un brillo suave de fibra larga. */
+.tx-tela-pima {
+  background-image:
+    linear-gradient(115deg, transparent 25%, var(--brillo) 45%, transparent 65%),
+    repeating-linear-gradient(0deg, var(--hilo-oscuro) 0 1px, transparent 1px 2px),
+    repeating-linear-gradient(90deg, var(--hilo-claro) 0 1px, transparent 1px 2px);
+}
+
+/* Denim: sarga diagonal marcada y desgaste claro al centro. */
+.tx-tela-denim {
+  background-image:
+    radial-gradient(ellipse 70% 60% at 50% 45%, var(--brillo), transparent 70%),
+    repeating-linear-gradient(-55deg, var(--hilo-claro) 0 1.5px, transparent 1.5px 4px),
+    repeating-linear-gradient(35deg, var(--hilo-oscuro) 0 1px, transparent 1px 7px);
+}
+
+/* Drill: sarga más cerrada y empinada. */
+.tx-tela-drill {
+  background-image:
+    repeating-linear-gradient(-63deg, var(--hilo-claro) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(27deg, var(--hilo-oscuro) 0 1px, transparent 1px 9px);
+}
+
+/* Lino: hilos de grosor irregular (slub), más marcados en la trama que en la urdimbre. */
+.tx-tela-lino {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      var(--hilo-oscuro) 0 1px,
+      transparent 1px 2.5px,
+      var(--hilo-claro) 2.5px 3.5px,
+      transparent 3.5px 4.5px,
+      var(--hilo-oscuro) 4.5px 6px,
+      transparent 6px 7px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 2px,
+      var(--hilo-oscuro) 2px 2.5px,
+      transparent 2.5px 5px,
+      var(--hilo-claro) 5px 5.5px,
+      transparent 5.5px 7px
+    );
+}
+
+/* Lana: punto de tejido en columnas de "V". */
+.tx-tela-lana {
+  background-image:
+    linear-gradient(60deg, transparent 42%, var(--hilo-claro) 43% 57%, transparent 58%),
+    linear-gradient(-60deg, transparent 42%, var(--hilo-oscuro) 43% 57%, transparent 58%);
+  background-size: 9px 11px;
+}
+
+/* Poliéster: superficie lisa con brillo y cuadrícula ripstop. */
+.tx-tela-poliester {
+  background-image:
+    linear-gradient(155deg, var(--brillo), transparent 38%, transparent 62%, rgba(0, 0, 0, 0.12)),
+    repeating-linear-gradient(0deg, var(--hilo-oscuro) 0 1px, transparent 1px 10px),
+    repeating-linear-gradient(90deg, var(--hilo-oscuro) 0 1px, transparent 1px 10px);
+}
+
+/* Mini muestra en los chips de tela del formulario, con un tono típico de cada tela. */
+.tx-mini-tela {
+  --hilo-claro: rgba(255, 255, 255, 0.4);
+  --hilo-oscuro: rgba(0, 0, 0, 0.18);
+  --brillo: rgba(255, 255, 255, 0.3);
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border-radius: 0.25rem;
+  background-color: var(--muestra);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.tx-mini-tela.tx-tela-pima {
+  --muestra: #ece6da;
+  --hilo-claro: rgba(255, 255, 255, 0.7);
+  --hilo-oscuro: rgba(60, 40, 20, 0.12);
+}
+
+.tx-mini-tela.tx-tela-algodon {
+  --muestra: #b9c3d6;
+}
+
+.tx-mini-tela.tx-tela-poliester {
+  --muestra: #2d3240;
+}
+
+.tx-mini-tela.tx-tela-denim {
+  --muestra: #3d5a80;
+}
+
+.tx-mini-tela.tx-tela-lino {
+  --muestra: #d3c2a0;
+  --hilo-oscuro: rgba(60, 40, 20, 0.2);
+}
+
+.tx-mini-tela.tx-tela-lana {
+  --muestra: #7a2436;
+  background-size: 5px 6px;
+}
+
+.tx-mini-tela.tx-tela-drill {
+  --muestra: #b3a178;
+}

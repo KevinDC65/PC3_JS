@@ -1,12 +1,27 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import AlertMessage from '../components/AlertMessage.jsx'
 import ConfirmModal from '../components/ConfirmModal.jsx'
+import DetallePrenda from '../components/DetallePrenda.jsx'
+import Drawer from '../components/Drawer.jsx'
+import Esqueleto from '../components/Esqueleto.jsx'
+import EstadoVacio from '../components/EstadoVacio.jsx'
 import Loading from '../components/Loading.jsx'
-import { TALLAS, TIPOS } from '../constants/prendas.js'
+import MuestraTela from '../components/MuestraTela.jsx'
+import TablaPrendas from '../components/TablaPrendas.jsx'
+import TarjetaPrenda from '../components/TarjetaPrenda.jsx'
+import { Tecla } from '../components/Tecla.jsx'
+import { TALLAS, TELAS, TIPOS } from '../constants/prendas.js'
 import { useAppContext } from '../context/AppContext.jsx'
+import { useLocalStorage } from '../hooks/useLocalStorage.js'
+import { useToast } from '../hooks/useToast.js'
 import { getAll, remove } from '../services/apiService.js'
-import { formatearFecha, formatearPrecio } from '../utils/formato.js'
+import {
+  CAMPOS_ORDEN,
+  avisarCambioInventario,
+  filtrarPrendas,
+  ordenarPrendas,
+} from '../utils/inventario.js'
 
 const ORDENES = [
   { valor: 'nombre-asc', texto: 'Nombre (A–Z)' },
@@ -15,46 +30,98 @@ const ORDENES = [
   { valor: 'precio-desc', texto: 'Precio: mayor a menor' },
   { valor: 'stock-asc', texto: 'Stock: menor a mayor' },
   { valor: 'stock-desc', texto: 'Stock: mayor a menor' },
+  { valor: 'fechaRegistro-desc', texto: 'Más recientes primero' },
+  { valor: 'codigo-asc', texto: 'Código' },
 ]
 const ORDEN_INICIAL = 'nombre-asc'
 
-/** Minúsculas y sin tildes, para que "pantalon" encuentre "Pantalón". */
-const normalizar = (texto) =>
-  String(texto ?? '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
+/** Valida un parámetro de la URL contra una lista; si no es válido, se ignora. */
+const valorPermitido = (valor, permitidos) => (permitidos.includes(valor) ? valor : '')
+
+/** Lee los filtros desde los parámetros de la URL. */
+function leerFiltros(parametros, minimo) {
+  return {
+    texto: parametros.get('q') ?? '',
+    tipo: valorPermitido(parametros.get('tipo'), TIPOS),
+    talla: valorPermitido(parametros.get('talla'), TALLAS),
+    tela: valorPermitido(parametros.get('tela'), TELAS),
+    soloStockBajo: parametros.get('stock') === 'bajo',
+    minimo,
+  }
+}
+
+function ordenValido(valor) {
+  const [campo, direccion] = String(valor ?? '').split('-')
+  return CAMPOS_ORDEN.includes(campo) && ['asc', 'desc'].includes(direccion)
+    ? `${campo}-${direccion}`
+    : ORDEN_INICIAL
+}
 
 function Lista() {
   const { config } = useAppContext()
-  const location = useLocation()
+  const toast = useToast()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [parametros, setParametros] = useSearchParams()
 
   const [prendas, setPrendas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [intento, setIntento] = useState(0)
 
-  // Mensaje que llega desde Registro al guardar una edición (location.state).
-  const [aviso, setAviso] = useState(() =>
-    location.state?.mensaje ? { tipo: 'success', texto: location.state.mensaje } : null,
-  )
-
-  const [busqueda, setBusqueda] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('')
-  const [filtroTalla, setFiltroTalla] = useState('')
-  const [orden, setOrden] = useState(ORDEN_INICIAL)
-
-  const [detalle, setDetalle] = useState(null)
-  const [detalleAbierto, setDetalleAbierto] = useState(false)
-  const [aEliminar, setAEliminar] = useState(null)
-  const [confirmacionAbierta, setConfirmacionAbierta] = useState(false)
+  const [vista, setVista] = useLocalStorage('textilapp:vista-lista', 'tabla')
+  const [seleccion, setSeleccion] = useState(() => new Set())
+  const [eliminacion, setEliminacion] = useState({ abierta: false, prendas: [] })
   const [eliminando, setEliminando] = useState(false)
+  const [errorEliminacion, setErrorEliminacion] = useState('')
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
+  const busquedaRef = useRef(null)
 
-  // Una vez leído, se limpia el state del historial para que el mensaje no reaparezca al recargar.
+  // Los filtros viven en la URL (?q=&tipo=&talla=&tela=&stock=bajo&orden=&prenda=)
+  // para que una vista filtrada se pueda compartir o guardar como marcador.
+  const filtros = leerFiltros(parametros, config.stockMinimo)
+
+  // El texto de búsqueda se guarda también en estado local: la lista se filtra al instante
+  // mientras se escribe y la URL (?q=) se actualiza un momento después.
+  const [textoBusqueda, setTextoBusqueda] = useState(filtros.texto)
+  const escritoRef = useRef(filtros.texto)
+  const temporizadorRef = useRef(null)
+
   useEffect(() => {
-    if (location.state?.mensaje) navigate(location.pathname, { replace: true, state: null })
-  }, [location.pathname, location.state, navigate])
+    if (filtros.texto !== escritoRef.current) {
+      escritoRef.current = filtros.texto
+      setTextoBusqueda(filtros.texto)
+    }
+  }, [filtros.texto])
+
+  useEffect(() => () => clearTimeout(temporizadorRef.current), [])
+
+  function buscar(texto) {
+    setTextoBusqueda(texto)
+    escritoRef.current = texto
+    clearTimeout(temporizadorRef.current)
+    temporizadorRef.current = setTimeout(() => cambiarParametros({ q: texto }), 250)
+  }
+  const orden = ordenValido(parametros.get('orden'))
+  const idDetalle = parametros.get('prenda')
+  const vistaActual = vista === 'galeria' ? 'galeria' : 'tabla'
+
+  function cambiarParametros(cambios) {
+    setParametros(
+      (anteriores) => {
+        const nuevos = new URLSearchParams(anteriores)
+        for (const [clave, valor] of Object.entries(cambios)) {
+          if (valor === '' || valor === null || valor === undefined || valor === false) {
+            nuevos.delete(clave)
+          } else {
+            nuevos.set(clave, valor)
+          }
+        }
+        return nuevos
+      },
+      { replace: true },
+    )
+  }
 
   function reintentar() {
     setCargando(true)
@@ -79,116 +146,126 @@ function Lista() {
     }
   }, [intento])
 
-  const prendasVisibles = useMemo(() => {
-    const termino = normalizar(busqueda.trim())
-    const filtradas = prendas.filter(
-      (prenda) =>
-        (!termino ||
-          normalizar(prenda.codigo).includes(termino) ||
-          normalizar(prenda.nombre).includes(termino)) &&
-        (!filtroTipo || prenda.tipo === filtroTipo) &&
-        (!filtroTalla || prenda.talla === filtroTalla),
-    )
-    const [campo, direccion] = orden.split('-')
-    const factor = direccion === 'desc' ? -1 : 1
-    return [...filtradas].sort((a, b) =>
-      campo === 'nombre'
-        ? a.nombre.localeCompare(b.nombre, 'es') * factor
-        : (Number(a[campo]) - Number(b[campo])) * factor,
-    )
-  }, [prendas, busqueda, filtroTipo, filtroTalla, orden])
+  // El atajo "/" desde otra página llega con esta marca para enfocar la búsqueda.
+  useEffect(() => {
+    if (!cargando && location.state?.enfocarBusqueda) {
+      busquedaRef.current?.focus()
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null })
+    }
+  }, [cargando, location, navigate])
 
-  const hayFiltros = Boolean(busqueda || filtroTipo || filtroTalla || orden !== ORDEN_INICIAL)
-  const stockBajo = (prenda) => Number(prenda.stock) < config.stockMinimo
+  const prendasVisibles = useMemo(
+    () =>
+      ordenarPrendas(
+        filtrarPrendas(prendas, {
+          ...leerFiltros(parametros, config.stockMinimo),
+          texto: textoBusqueda,
+        }),
+        ordenValido(parametros.get('orden')),
+      ),
+    [prendas, parametros, config.stockMinimo, textoBusqueda],
+  )
+
+  const detalle = idDetalle ? prendas.find((prenda) => String(prenda.id) === idDetalle) : null
+  const seleccionadas = prendasVisibles.filter((prenda) => seleccion.has(prenda.id))
+  const hayFiltros = Boolean(
+    textoBusqueda || filtros.tipo || filtros.talla || filtros.tela || filtros.soloStockBajo,
+  )
+  const cantidadFiltros = [filtros.tipo, filtros.talla, filtros.tela, filtros.soloStockBajo].filter(
+    Boolean,
+  ).length
+  const unidades = prendas.reduce((total, prenda) => total + Number(prenda.stock || 0), 0)
 
   function limpiarFiltros() {
-    setBusqueda('')
-    setFiltroTipo('')
-    setFiltroTalla('')
-    setOrden(ORDEN_INICIAL)
+    buscar('')
+    cambiarParametros({ q: '', tipo: '', talla: '', tela: '', stock: '' })
   }
 
-  function verDetalle(prenda) {
-    setDetalle(prenda)
-    setDetalleAbierto(true)
+  function ordenarPor(campo) {
+    const [campoActual, direccion] = orden.split('-')
+    const nueva = campoActual === campo && direccion === 'asc' ? 'desc' : 'asc'
+    cambiarParametros({ orden: `${campo}-${nueva}` === ORDEN_INICIAL ? '' : `${campo}-${nueva}` })
   }
 
-  function pedirEliminacion(prenda) {
-    setAEliminar(prenda)
-    setConfirmacionAbierta(true)
+  function alternarSeleccion(id) {
+    setSeleccion((anterior) => {
+      const nueva = new Set(anterior)
+      if (nueva.has(id)) nueva.delete(id)
+      else nueva.add(id)
+      return nueva
+    })
+  }
+
+  function seleccionarTodas(marcar) {
+    setSeleccion((anterior) => {
+      const nueva = new Set(anterior)
+      for (const prenda of prendasVisibles) {
+        if (marcar) nueva.add(prenda.id)
+        else nueva.delete(prenda.id)
+      }
+      return nueva
+    })
+  }
+
+  const abrirDetalle = (prenda) => cambiarParametros({ prenda: prenda.id })
+  const cerrarDetalle = () => cambiarParametros({ prenda: '' })
+  const editar = (prenda) => navigate(`/registro/${prenda.id}`)
+  const pedirEliminacion = (lista) => {
+    setErrorEliminacion('')
+    setEliminacion({ abierta: true, prendas: lista })
   }
 
   async function confirmarEliminacion() {
-    const prenda = aEliminar
+    const lista = eliminacion.prendas
     setEliminando(true)
-    try {
-      await remove(prenda.id)
-      setPrendas((anteriores) => anteriores.filter((otra) => otra.id !== prenda.id))
-      setAviso({
-        tipo: 'success',
-        texto: `Se eliminó la prenda ${prenda.codigo} · ${prenda.nombre}.`,
-      })
-    } catch (e) {
-      setAviso({ tipo: 'danger', texto: e.message })
-    } finally {
-      setEliminando(false)
-      setConfirmacionAbierta(false)
-      // El aviso aparece arriba de la tabla: se lleva la vista hasta él tras cerrar el modal.
-      const sinAnimacion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      setTimeout(() => window.scrollTo({ top: 0, behavior: sinAnimacion ? 'auto' : 'smooth' }), 160)
+    const eliminadas = []
+    const fallidas = []
+    // Una petición DELETE por prenda (apiService.remove), en orden.
+    for (const prenda of lista) {
+      try {
+        await remove(prenda.id)
+        eliminadas.push(prenda)
+      } catch (e) {
+        fallidas.push({ prenda, mensaje: e.message })
+      }
     }
+    const idsEliminados = new Set(eliminadas.map((prenda) => prenda.id))
+    setPrendas((anteriores) => anteriores.filter((prenda) => !idsEliminados.has(prenda.id)))
+    setSeleccion((anterior) => new Set([...anterior].filter((id) => !idsEliminados.has(id))))
+    setEliminando(false)
+    setEliminacion((actual) => ({ ...actual, abierta: false }))
+    if (detalle && idsEliminados.has(detalle.id)) cerrarDetalle()
+
+    if (eliminadas.length === 1) {
+      toast.exito(`Se eliminó la prenda ${eliminadas[0].codigo} · ${eliminadas[0].nombre}.`)
+    } else if (eliminadas.length > 1) {
+      toast.exito(`Se eliminaron ${eliminadas.length} prendas del inventario.`)
+    }
+    if (fallidas.length > 0) {
+      const codigos = fallidas.map(({ prenda }) => prenda.codigo).join(', ')
+      setErrorEliminacion(`No se pudo eliminar ${codigos}. ${fallidas[0].mensaje}`)
+    }
+    if (eliminadas.length > 0) avisarCambioInventario()
   }
 
-  const acciones = (prenda, conTexto = false) =>
-    [
-      {
-        clave: 'ver',
-        icono: 'bi-eye',
-        texto: 'Ver',
-        etiqueta: `Ver detalle de ${prenda.codigo}`,
-        clase: 'btn-outline-secondary',
-        onClick: () => verDetalle(prenda),
-      },
-      {
-        clave: 'editar',
-        icono: 'bi-pencil',
-        texto: 'Editar',
-        etiqueta: `Editar ${prenda.codigo}`,
-        clase: 'btn-outline-secondary',
-        onClick: () => navigate(`/registro/${prenda.id}`),
-      },
-      {
-        clave: 'eliminar',
-        icono: 'bi-trash3',
-        texto: 'Eliminar',
-        etiqueta: `Eliminar ${prenda.codigo}`,
-        clase: 'btn-outline-danger',
-        onClick: () => pedirEliminacion(prenda),
-      },
-    ].map((accion) => (
-      <button
-        key={accion.clave}
-        type="button"
-        className={`btn ${conTexto ? 'flex-fill' : 'btn-sm'} ${accion.clase} d-inline-flex align-items-center justify-content-center gap-2`}
-        onClick={accion.onClick}
-        aria-label={conTexto ? undefined : accion.etiqueta}
-        title={conTexto ? undefined : accion.texto}
-      >
-        <i className={`bi ${accion.icono}`} aria-hidden="true" />
-        {conTexto && accion.texto}
-      </button>
-    ))
-
-  const insigniaStockBajo = (
-    <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
-      Stock bajo
-    </span>
-  )
-
-  const unidades = prendas.reduce((total, prenda) => total + Number(prenda.stock || 0), 0)
-
   function contenido() {
-    if (cargando) return <Loading />
+    if (cargando) {
+      return (
+        <>
+          <Loading />
+          <div className="tx-tabla tx-tabla-esqueleto" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((fila) => (
+              <div key={fila} className="tx-fila-esqueleto">
+                <Esqueleto ancho="1rem" alto="1rem" />
+                <Esqueleto ancho="2.25rem" alto="2.25rem" />
+                <Esqueleto ancho={`${40 + ((fila * 13) % 30)}%`} alto="0.875rem" />
+                <Esqueleto ancho="3rem" alto="0.875rem" className="ms-auto" />
+              </div>
+            ))}
+          </div>
+        </>
+      )
+    }
 
     if (error) {
       return (
@@ -209,289 +286,369 @@ function Lista() {
 
     if (prendas.length === 0) {
       return (
-        <div className="textil-vacio">
-          <i className="bi bi-box-seam" aria-hidden="true" />
-          <h3 className="h5 mt-3">Aún no hay prendas registradas</h3>
-          <p className="text-body-secondary mb-4">
-            Registra la primera prenda para empezar a controlar el inventario.
-          </p>
-          <Link to="/registro" className="btn btn-primary">
-            Registrar prenda
-          </Link>
-        </div>
+        <EstadoVacio
+          ilustracion="percha"
+          titulo="Aún no hay prendas registradas"
+          acciones={
+            <Link to="/registro" className="btn btn-primary">
+              Registrar la primera prenda
+            </Link>
+          }
+        >
+          Registra la primera prenda para empezar a controlar el stock, los precios y lo que hay que
+          reponer.
+        </EstadoVacio>
       )
     }
 
     return (
       <>
-        <div className="textil-filtros mb-3">
-          <div className="row g-2 g-md-3 align-items-end">
-            <div className="col-12 col-lg-4">
-              <label htmlFor="filtro-busqueda" className="form-label small">
-                Buscar
-              </label>
-              <div className="input-group">
-                <span className="input-group-text">
-                  <i className="bi bi-search" aria-hidden="true" />
-                </span>
-                <input
-                  id="filtro-busqueda"
-                  type="search"
-                  className="form-control"
-                  placeholder="Código o nombre"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="col-6 col-md-4 col-lg-2">
-              <label htmlFor="filtro-tipo" className="form-label small">
-                Tipo
-              </label>
-              <select
-                id="filtro-tipo"
-                className="form-select"
-                value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {TIPOS.map((tipo) => (
-                  <option key={tipo}>{tipo}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-6 col-md-4 col-lg-2">
-              <label htmlFor="filtro-talla" className="form-label small">
-                Talla
-              </label>
-              <select
-                id="filtro-talla"
-                className="form-select"
-                value={filtroTalla}
-                onChange={(e) => setFiltroTalla(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {TALLAS.map((talla) => (
-                  <option key={talla}>{talla}</option>
-                ))}
-              </select>
-            </div>
-            <div className="col-12 col-md-4 col-lg-2">
-              <label htmlFor="filtro-orden" className="form-label small">
-                Ordenar por
-              </label>
-              <select
-                id="filtro-orden"
-                className="form-select"
-                value={orden}
-                onChange={(e) => setOrden(e.target.value)}
-              >
-                {ORDENES.map((opcion) => (
-                  <option key={opcion.valor} value={opcion.valor}>
-                    {opcion.texto}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-12 col-lg-2">
+        <div className="tx-barra-filtros" role="search" aria-label="Filtrar prendas">
+          <div className="tx-campo-busqueda">
+            <label htmlFor="filtro-busqueda" className="visually-hidden">
+              Buscar por código o nombre
+            </label>
+            <i className="bi bi-search" aria-hidden="true" />
+            <input
+              ref={busquedaRef}
+              id="filtro-busqueda"
+              type="search"
+              className="form-control"
+              placeholder="Buscar prenda"
+              value={textoBusqueda}
+              onChange={(evento) => buscar(evento.target.value)}
+              onKeyDown={(evento) => {
+                if (evento.key === 'Escape' && textoBusqueda) {
+                  evento.preventDefault()
+                  buscar('')
+                }
+              }}
+              autoComplete="off"
+            />
+            <Tecla className="tx-campo-busqueda-tecla">/</Tecla>
+          </div>
+
+          <button
+            type="button"
+            className="tx-boton-filtros"
+            aria-expanded={filtrosAbiertos}
+            aria-controls="filtros-lista"
+            onClick={() => setFiltrosAbiertos((abiertos) => !abiertos)}
+          >
+            <i className="bi bi-sliders2" aria-hidden="true" />
+            <span className="visually-hidden">Filtros y orden</span>
+            {cantidadFiltros > 0 && (
+              <span className="tx-boton-filtros-cuenta">{cantidadFiltros}</span>
+            )}
+          </button>
+
+          <div className="tx-filtros-plegables" id="filtros-lista" data-abierto={filtrosAbiertos}>
+            <div className="tx-filtros-selects">
+              {[
+                { clave: 'tipo', etiqueta: 'Tipo', opciones: TIPOS, todos: 'Todos los tipos' },
+                { clave: 'talla', etiqueta: 'Talla', opciones: TALLAS, todos: 'Todas las tallas' },
+                { clave: 'tela', etiqueta: 'Tela', opciones: TELAS, todos: 'Todas las telas' },
+              ].map((filtro) => (
+                <div
+                  key={filtro.clave}
+                  className="tx-filtro"
+                  data-activo={Boolean(filtros[filtro.clave])}
+                >
+                  <label htmlFor={`filtro-${filtro.clave}`} className="visually-hidden">
+                    {filtro.etiqueta}
+                  </label>
+                  <select
+                    id={`filtro-${filtro.clave}`}
+                    className="form-select"
+                    value={filtros[filtro.clave]}
+                    onChange={(evento) =>
+                      cambiarParametros({ [filtro.clave]: evento.target.value })
+                    }
+                  >
+                    <option value="">{filtro.todos}</option>
+                    {filtro.opciones.map((opcion) => (
+                      <option key={opcion} value={opcion}>
+                        {opcion}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
               <button
                 type="button"
-                className="btn btn-outline-secondary w-100 d-inline-flex align-items-center justify-content-center gap-2"
-                onClick={limpiarFiltros}
-                disabled={!hayFiltros}
+                className="tx-chip"
+                aria-pressed={filtros.soloStockBajo}
+                onClick={() => cambiarParametros({ stock: filtros.soloStockBajo ? '' : 'bajo' })}
               >
-                <i className="bi bi-x-circle" aria-hidden="true" />
-                Limpiar filtros
+                <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+                Stock bajo
               </button>
             </div>
+
+            <label htmlFor="filtro-orden" className="visually-hidden">
+              Ordenar por
+            </label>
+            <select
+              id="filtro-orden"
+              className="form-select tx-select-orden"
+              value={orden}
+              onChange={(evento) =>
+                cambiarParametros({
+                  orden: evento.target.value === ORDEN_INICIAL ? '' : evento.target.value,
+                })
+              }
+            >
+              {ORDENES.some((opcion) => opcion.valor === orden) ? null : (
+                <option value={orden}>Orden de la tabla</option>
+              )}
+              {ORDENES.map((opcion) => (
+                <option key={opcion.valor} value={opcion.valor}>
+                  {opcion.texto}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="tx-segmentado" role="group" aria-label="Vista de la lista">
+            {[
+              { valor: 'tabla', texto: 'Tabla', icono: 'bi-list-ul' },
+              { valor: 'galeria', texto: 'Galería', icono: 'bi-grid-3x2-gap' },
+            ].map((opcion) => (
+              <button
+                key={opcion.valor}
+                type="button"
+                aria-pressed={vistaActual === opcion.valor}
+                onClick={() => setVista(opcion.valor)}
+                title={`Vista ${opcion.texto.toLowerCase()}`}
+              >
+                <i className={`bi ${opcion.icono}`} aria-hidden="true" />
+                <span>{opcion.texto}</span>
+              </button>
+            ))}
           </div>
         </div>
 
-        <p className="small text-body-secondary mb-3" aria-live="polite">
-          Mostrando <strong className="text-body">{prendasVisibles.length}</strong> de{' '}
-          {prendas.length} prendas
-        </p>
+        <div className="tx-resultado">
+          <p className="mb-0" aria-live="polite">
+            Mostrando <strong>{prendasVisibles.length}</strong> de {prendas.length}{' '}
+            {prendas.length === 1 ? 'prenda' : 'prendas'}
+          </p>
+          {hayFiltros && (
+            <ul className="tx-filtros-activos" aria-label="Filtros activos">
+              {textoBusqueda && (
+                <FiltroActivo texto={`«${textoBusqueda}»`} onQuitar={() => buscar('')} />
+              )}
+              {filtros.tipo && (
+                <FiltroActivo
+                  texto={filtros.tipo}
+                  onQuitar={() => cambiarParametros({ tipo: '' })}
+                />
+              )}
+              {filtros.talla && (
+                <FiltroActivo
+                  texto={`Talla ${filtros.talla}`}
+                  onQuitar={() => cambiarParametros({ talla: '' })}
+                />
+              )}
+              {filtros.tela && (
+                <FiltroActivo
+                  texto={filtros.tela}
+                  onQuitar={() => cambiarParametros({ tela: '' })}
+                />
+              )}
+              {filtros.soloStockBajo && (
+                <FiltroActivo
+                  texto="Stock bajo"
+                  onQuitar={() => cambiarParametros({ stock: '' })}
+                />
+              )}
+              <li>
+                <button type="button" className="tx-enlace-boton" onClick={limpiarFiltros}>
+                  Limpiar filtros
+                </button>
+              </li>
+            </ul>
+          )}
+        </div>
+
+        <AlertMessage
+          tipo="danger"
+          mensaje={errorEliminacion}
+          onClose={() => setErrorEliminacion('')}
+        />
 
         {prendasVisibles.length === 0 ? (
-          <div className="textil-vacio">
-            <i className="bi bi-funnel" aria-hidden="true" />
-            <h3 className="h5 mt-3">Ninguna prenda coincide con los filtros</h3>
-            <p className="text-body-secondary mb-4">
-              Prueba con otro código o nombre, o quita algún filtro.
-            </p>
-            <button type="button" className="btn btn-outline-primary" onClick={limpiarFiltros}>
-              Limpiar filtros
-            </button>
-          </div>
+          <EstadoVacio
+            ilustracion="lupa"
+            titulo="Ninguna prenda coincide"
+            acciones={
+              <button type="button" className="btn btn-outline-primary" onClick={limpiarFiltros}>
+                Limpiar filtros
+              </button>
+            }
+          >
+            Prueba con otro código o nombre, o quita algún filtro. La búsqueda ignora tildes y
+            mayúsculas: «pantalon» encuentra «Pantalón».
+          </EstadoVacio>
+        ) : vistaActual === 'tabla' ? (
+          <TablaPrendas
+            prendas={prendasVisibles}
+            minimo={config.stockMinimo}
+            orden={orden}
+            onOrdenar={ordenarPor}
+            seleccion={seleccion}
+            onSeleccionar={alternarSeleccion}
+            onSeleccionarTodas={seleccionarTodas}
+            onAbrir={abrirDetalle}
+            onEditar={editar}
+            onEliminar={(prenda) => pedirEliminacion([prenda])}
+          />
         ) : (
-          <>
-            <div className="textil-tabla d-none d-lg-block">
-              <div className="table-responsive">
-                <table className="table table-hover align-middle">
-                  <caption className="visually-hidden">
-                    Prendas registradas en el inventario
-                  </caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Código</th>
-                      <th scope="col">Nombre</th>
-                      <th scope="col">Tipo</th>
-                      <th scope="col">Tela</th>
-                      <th scope="col">Talla</th>
-                      <th scope="col">Color</th>
-                      <th scope="col" className="text-end">
-                        Precio
-                      </th>
-                      <th scope="col" className="text-end">
-                        Stock
-                      </th>
-                      <th scope="col" className="text-end">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prendasVisibles.map((prenda) => (
-                      <tr key={prenda.id}>
-                        <td className="textil-codigo text-nowrap">{prenda.codigo}</td>
-                        <td className="fw-medium">{prenda.nombre}</td>
-                        <td>{prenda.tipo}</td>
-                        <td className="text-nowrap">{prenda.tela}</td>
-                        <td>{prenda.talla}</td>
-                        <td>{prenda.color}</td>
-                        <td className="text-end text-nowrap">{formatearPrecio(prenda.precio)}</td>
-                        <td className="text-end text-nowrap">
-                          {stockBajo(prenda) && <span className="me-2">{insigniaStockBajo}</span>}
-                          {prenda.stock}
-                        </td>
-                        <td className="text-end">
-                          <div className="d-inline-flex gap-1">{acciones(prenda)}</div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <ul className="list-unstyled row row-cols-1 row-cols-md-2 g-3 d-lg-none mb-0">
-              {prendasVisibles.map((prenda) => (
-                <li key={prenda.id} className="col">
-                  <article className="card h-100">
-                    <div className="card-body d-flex flex-column gap-2">
-                      <div className="d-flex justify-content-between align-items-center gap-2">
-                        <span className="textil-codigo text-body-secondary">{prenda.codigo}</span>
-                        {stockBajo(prenda) && insigniaStockBajo}
-                      </div>
-                      <h3 className="h6 fw-semibold mb-0">{prenda.nombre}</h3>
-                      <p className="small text-body-secondary mb-0">
-                        {prenda.tipo} · {prenda.tela} · Talla {prenda.talla} · {prenda.color}
-                      </p>
-                      <div className="d-flex justify-content-between align-items-baseline mt-1">
-                        <span className="textil-cifra fs-4">{formatearPrecio(prenda.precio)}</span>
-                        <span className="small">
-                          <strong>{prenda.stock}</strong> unid.
-                        </span>
-                      </div>
-                      <div className="d-flex gap-2 mt-auto pt-2">{acciones(prenda, true)}</div>
-                    </div>
-                  </article>
-                </li>
-              ))}
-            </ul>
-          </>
+          <ul className="tx-galeria">
+            {prendasVisibles.map((prenda, indice) => (
+              <li key={prenda.id}>
+                <TarjetaPrenda
+                  prenda={prenda}
+                  minimo={config.stockMinimo}
+                  indice={indice}
+                  onAbrir={() => abrirDetalle(prenda)}
+                  seleccionable
+                  seleccionada={seleccion.has(prenda.id)}
+                  onSeleccionar={() => alternarSeleccion(prenda.id)}
+                />
+              </li>
+            ))}
+          </ul>
         )}
       </>
     )
   }
 
   return (
-    <section>
-      <header className="textil-encabezado-pagina">
+    <section className="tx-lista" aria-labelledby="titulo-lista">
+      <header className="tx-cabecera-pagina">
         <div>
-          <h2>Lista de prendas</h2>
-          <p className="text-body-secondary mb-0">
+          <h2 id="titulo-lista" className="tx-titulo-pagina">
+            Lista de prendas
+          </h2>
+          <p className="tx-bajada">
             {cargando || error
               ? 'Inventario completo de prendas registradas.'
-              : `${prendas.length} prendas · ${unidades} unidades en stock.`}
+              : `${prendas.length} ${prendas.length === 1 ? 'prenda' : 'prendas'} · ${unidades.toLocaleString('es-PE')} unidades en stock.`}
           </p>
         </div>
-        <Link to="/registro" className="btn btn-primary d-inline-flex align-items-center gap-2">
-          <i className="bi bi-plus-lg" aria-hidden="true" />
-          Registrar prenda
-        </Link>
+        <div className="tx-cabecera-acciones">
+          <Link to="/registro" className="btn btn-primary d-inline-flex align-items-center gap-2">
+            <i className="bi bi-plus-lg" aria-hidden="true" />
+            Registrar prenda
+          </Link>
+        </div>
       </header>
-
-      <AlertMessage
-        tipo={aviso?.tipo}
-        mensaje={aviso?.texto}
-        onClose={() => setAviso(null)}
-        autoCerrar={aviso?.tipo === 'success' ? 6000 : undefined}
-      />
 
       {contenido()}
 
-      <ConfirmModal
-        abierto={detalleAbierto}
+      {seleccionadas.length > 0 && (
+        <div className="tx-barra-lote" role="region" aria-label="Acciones de la selección">
+          <span className="tx-barra-lote-cuenta">
+            <strong>{seleccionadas.length}</strong>{' '}
+            {seleccionadas.length === 1 ? 'seleccionada' : 'seleccionadas'}
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm tx-barra-lote-secundario"
+            onClick={() => seleccionarTodas(false)}
+          >
+            Quitar selección
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm btn-danger d-inline-flex align-items-center gap-2"
+            onClick={() => pedirEliminacion(seleccionadas)}
+          >
+            <i className="bi bi-trash3" aria-hidden="true" />
+            Eliminar
+          </button>
+        </div>
+      )}
+
+      <Drawer
+        abierto={Boolean(detalle)}
+        onCerrar={cerrarDetalle}
         titulo={detalle?.nombre ?? 'Detalle de la prenda'}
-        textoConfirmar="Editar prenda"
-        iconoConfirmar="bi-pencil"
-        textoCancelar="Cerrar"
-        onConfirm={() => navigate(`/registro/${detalle.id}`)}
-        onCancel={() => setDetalleAbierto(false)}
+        pie={
+          detalle && (
+            <>
+              <button
+                type="button"
+                className="btn btn-outline-danger d-inline-flex align-items-center gap-2"
+                onClick={() => pedirEliminacion([detalle])}
+              >
+                <i className="bi bi-trash3" aria-hidden="true" />
+                Eliminar
+              </button>
+              <Link
+                to={`/registro/${detalle.id}`}
+                className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2 flex-grow-1"
+              >
+                <i className="bi bi-pencil" aria-hidden="true" />
+                Editar prenda
+              </Link>
+            </>
+          )
+        }
       >
-        {detalle && (
-          <>
-            <div className="d-flex align-items-center gap-2 mb-3">
-              <span className="textil-codigo text-body-secondary">{detalle.codigo}</span>
-              {stockBajo(detalle) && insigniaStockBajo}
-            </div>
-            <dl className="row mb-0 small">
-              <dt className="col-5 fw-normal text-body-secondary">Tipo</dt>
-              <dd className="col-7">{detalle.tipo}</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Tela</dt>
-              <dd className="col-7">{detalle.tela}</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Talla</dt>
-              <dd className="col-7">{detalle.talla}</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Color</dt>
-              <dd className="col-7">{detalle.color}</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Precio</dt>
-              <dd className="col-7 textil-cifras">{formatearPrecio(detalle.precio)}</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Stock</dt>
-              <dd className="col-7 textil-cifras">{detalle.stock} unidades</dd>
-              <dt className="col-5 fw-normal text-body-secondary">Valor en stock</dt>
-              <dd className="col-7 textil-cifras">
-                {formatearPrecio(Number(detalle.precio) * Number(detalle.stock))}
-              </dd>
-              <dt className="col-5 fw-normal text-body-secondary">Registrada</dt>
-              <dd className="col-7 mb-0">{formatearFecha(detalle.fechaRegistro)}</dd>
-            </dl>
-          </>
-        )}
-      </ConfirmModal>
+        {detalle && <DetallePrenda prenda={detalle} minimo={config.stockMinimo} />}
+      </Drawer>
 
       <ConfirmModal
-        abierto={confirmacionAbierta}
-        titulo="Eliminar prenda"
-        textoConfirmar="Eliminar"
+        abierto={eliminacion.abierta}
+        titulo={
+          eliminacion.prendas.length > 1
+            ? `Eliminar ${eliminacion.prendas.length} prendas`
+            : 'Eliminar prenda'
+        }
+        textoConfirmar={eliminacion.prendas.length > 1 ? 'Eliminar todas' : 'Eliminar'}
         iconoConfirmar="bi-trash3"
         varianteConfirmar="danger"
+        textoCargando="Eliminando..."
         cargando={eliminando}
         onConfirm={confirmarEliminacion}
-        onCancel={() => setConfirmacionAbierta(false)}
+        onCancel={() => setEliminacion((actual) => ({ ...actual, abierta: false }))}
       >
-        {aEliminar && (
-          <>
-            <p className="mb-2">¿Seguro que deseas eliminar esta prenda del inventario?</p>
-            <p className="mb-2 p-3 rounded bg-body-tertiary border">
-              <span className="textil-codigo d-block text-body-secondary">{aEliminar.codigo}</span>
-              <strong>{aEliminar.nombre}</strong>
-            </p>
-            <p className="small text-body-secondary mb-0">Esta acción no se puede deshacer.</p>
-          </>
-        )}
+        <p className="mb-3">
+          {eliminacion.prendas.length > 1
+            ? '¿Seguro que deseas eliminar estas prendas del inventario?'
+            : '¿Seguro que deseas eliminar esta prenda del inventario?'}
+        </p>
+        <ul className="tx-lista-eliminar">
+          {eliminacion.prendas.map((prenda) => (
+            <li key={prenda.id}>
+              <MuestraTela color={prenda.color} tela={prenda.tela} forma="chip" />
+              <span className="min-w-0">
+                <span className="tx-codigo d-block">{prenda.codigo}</span>
+                <strong className="d-block text-truncate">{prenda.nombre}</strong>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="small text-body-secondary mb-0 mt-3">
+          <i className="bi bi-exclamation-circle me-1" aria-hidden="true" />
+          Esta acción no se puede deshacer.
+        </p>
       </ConfirmModal>
     </section>
+  )
+}
+
+function FiltroActivo({ texto, onQuitar }) {
+  return (
+    <li>
+      <button type="button" className="tx-filtro-activo" onClick={onQuitar}>
+        {texto}
+        <i className="bi bi-x" aria-hidden="true" />
+        <span className="visually-hidden">(quitar filtro)</span>
+      </button>
+    </li>
   )
 }
 
