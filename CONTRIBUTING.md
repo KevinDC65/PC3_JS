@@ -1,6 +1,6 @@
 # Reglas del equipo
 
-Estas reglas existen para que 5 personas (y sus agentes) trabajen en paralelo sin romper `main`. Son obligatorias.
+Estas reglas existen para que 5 personas trabajen en paralelo sin romper `main`. Son obligatorias.
 
 ## 1. Antes de empezar
 

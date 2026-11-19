@@ -7,12 +7,18 @@ import 'bootstrap/dist/js/bootstrap.bundle.min.js'
 import './index.css'
 import App from './App.jsx'
 import { AppProvider } from './context/AppContext.jsx'
+import { ShellProvider } from './context/ShellProvider.jsx'
+import { ToastProvider } from './context/ToastProvider.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AppProvider>
-        <App />
+        <ToastProvider>
+          <ShellProvider>
+            <App />
+          </ShellProvider>
+        </ToastProvider>
       </AppProvider>
     </BrowserRouter>
   </StrictMode>,

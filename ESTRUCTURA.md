@@ -14,38 +14,62 @@ PC3_JS/
 ├── public/                    Archivos estáticos (favicon)
 ├── src/
 │   ├── components/            Piezas reutilizables, sin lógica de página
-│   │   ├── Header.jsx         Encabezado con el título de la app (#1)
-│   │   ├── Navbar.jsx         Navegación con Link/NavLink (#3, #17, #20)
+│   │   ├── Header.jsx         Cabecera: título de la app, migas y buscador Ctrl+K (#1)
+│   │   ├── Navbar.jsx         Barra lateral y barra inferior móvil con NavLink (#3, #17, #20)
 │   │   ├── Footer.jsx         Pie de página (#4)
-│   │   ├── Loading.jsx        Indicador "Loading..." (listo)
-│   │   ├── AlertMessage.jsx   Alertas de éxito/error (#15)
-│   │   ├── PrendaForm.jsx     Formulario de prenda reutilizable vía props (#18)
-│   │   ├── Modal.jsx          Base de modales: portal, Esc, foco y bloqueo de scroll (#21)
-│   │   ├── ConfirmModal.jsx   Confirmación de eliminación y detalle de prenda (#21)
-│   │   └── LoginModal.jsx     Inicio de sesión simulado (#20)
+│   │   ├── Marca.jsx          Sello y nombre de la marca
+│   │   ├── Loading.jsx        Indicador "Loading..."
+│   │   ├── Esqueleto.jsx      Esqueletos de carga
+│   │   ├── AlertMessage.jsx   Alertas de éxito/error; también dentro de los toasts (#15)
+│   │   ├── PrendaForm.jsx     Formulario controlado reutilizable vía props (#5, #12, #13, #18)
+│   │   ├── TarjetaPrenda.jsx  Tarjeta de la galería y vista previa del formulario
+│   │   ├── MuestraTela.jsx    Muestra de color con textura según la tela
+│   │   ├── TablaPrendas.jsx   Tabla ordenable con selección múltiple (#16, #22)
+│   │   ├── DetallePrenda.jsx  Contenido del panel lateral de detalle (#21)
+│   │   ├── Drawer.jsx         Panel lateral accesible
+│   │   ├── Modal.jsx          Base de modales: portal, Esc, foco y bloqueo de scroll
+│   │   ├── ConfirmModal.jsx   Confirmación de eliminación (#21)
+│   │   ├── LoginModal.jsx     Inicio de sesión simulado (#20)
+│   │   ├── PaletaComandos.jsx Paleta de comandos (Ctrl+K)
+│   │   ├── AyudaAtajos.jsx    Ayuda de atajos de teclado (?)
+│   │   ├── Tecla.jsx          Representación de una tecla
+│   │   ├── Graficos.jsx       Franja por tipo y barras por talla (Inicio)
+│   │   └── EstadoVacio.jsx    Estados vacío y sin resultados
 │   ├── pages/                 Una por ruta
 │   │   ├── Home.jsx           "/"            (#11)
 │   │   ├── Registro.jsx       "/registro" y "/registro/:id" (#5, #12, #13, #18, #19)
-│   │   ├── Lista.jsx          "/lista"       (#16, #21, #22)
+│   │   ├── Lista.jsx          "/lista"       tabla/galería, filtros en la URL (#16, #21, #22)
 │   │   └── NotFound.jsx       "*"            (#9)
 │   ├── context/
-│   │   └── AppContext.jsx     Estado global: usuario, tema, configuración (#6)
+│   │   ├── AppContext.jsx     Estado global: usuario, tema, configuración (#6)
+│   │   ├── ShellProvider.jsx  Paneles abiertos y navegación protegida
+│   │   ├── ToastProvider.jsx  Notificaciones tipo toast
+│   │   └── contextos.js       Definición de los contextos del shell y los toasts
 │   ├── hooks/
-│   │   └── useLocalStorage.js Custom hook de persistencia (#14)
+│   │   ├── useLocalStorage.js Custom hook de persistencia (#14)
+│   │   ├── useShell.js        Acceso al estado del shell
+│   │   ├── useToast.js        Mostrar toasts
+│   │   ├── useCapaModal.js    Foco atrapado, Esc y bloqueo de scroll en capas
+│   │   ├── useAtajosTeclado.js Atajos globales (N, /, G+I/L/R, ?)
+│   │   ├── useConteoInventario.js Contadores de la barra lateral
+│   │   └── useGuardiaCambios.js Aviso al salir con cambios sin guardar
 │   ├── services/
 │   │   └── apiService.js      Único lugar que habla con la API (#8)
 │   ├── constants/
 │   │   └── prendas.js         Tipos, telas, tallas, prenda vacía y stock mínimo (#5)
 │   ├── utils/
 │   │   ├── validarPrenda.js   Validación y normalización de prendas (#12)
-│   │   └── formato.js         Formato de precios y fechas
-│   ├── App.jsx                Layout + definición de rutas
-│   ├── main.jsx               Punto de entrada: Bootstrap, Router, AppProvider
-│   └── index.css              Estilos globales (#2)
+│   │   ├── formato.js         Formato de precios y fechas
+│   │   ├── colores.js         Nombres de color en español → muestra de color
+│   │   └── inventario.js      Resumen, filtros y orden del inventario
+│   ├── styles/                base, shell, capas, telas y vistas (importados desde index.css)
+│   ├── App.jsx                Shell de la app + definición de rutas
+│   ├── main.jsx               Punto de entrada: Bootstrap, Router y proveedores
+│   └── index.css              Tokens de diseño claro/oscuro (#2)
 ├── db.json                    "Base de datos" de json-server (#7)
 ├── .env.example               VITE_API_URL
 ├── package.json               Dependencias y scripts
-└── *.md                       Documentación (README, PROYECTO, ESTRUCTURA, CONTRIBUTING, SPRINTS, AGENTS)
+└── *.md                       Documentación (README, PROYECTO, PRODUCT, DESIGN, ESTRUCTURA, CONTRIBUTING, SPRINTS, AGENTS)
 ```
 
 > La práctica nombra los archivos como `App.js`, `Navbar.js`, etc. En Vite los componentes con JSX usan la extensión `.jsx`; el contenido y propósito son los mismos.

@@ -53,12 +53,22 @@ Levanta a la vez:
 
 ## Funcionalidades
 
-- **Inicio:** resumen del inventario (prendas, unidades, stock bajo, valor total), prendas por reponer y unidades por tipo.
-- **Registro:** formulario controlado con validación en vivo, foco automático, vista previa de etiqueta y borrador guardado en `localStorage`.
+- **Shell de aplicación:** barra lateral contraíble, barra inferior en móvil, paleta de comandos (`Ctrl+K`), atajos de teclado (`?` muestra la ayuda) y notificaciones tipo toast.
+- **Inicio:** indicadores del inventario (valor, prendas, unidades, stock bajo), franja de unidades por tipo, barras por talla, prendas por reponer y registradas recientemente.
+- **Registro:** formulario controlado con validación en vivo, selector visual de tipo, tela y talla, vista previa de la tarjeta, guardado con `Ctrl+S`, borrador en `localStorage` y aviso al salir con cambios sin guardar.
 - **Edición:** `/registro/:id` carga la prenda y guarda con `PUT`.
-- **Lista:** búsqueda, filtros por tipo y talla, orden, detalle en modal y eliminación con confirmación.
+- **Lista:** vista tabla (orden por columna, selección y eliminación en lote) o galería con muestras de color y tela; búsqueda y filtros guardados en la URL; detalle en panel lateral.
 - **Sesión y tema:** inicio de sesión simulado y tema claro/oscuro compartidos con `useContext` y persistidos.
-- **Estados:** indicador `Loading...`, mensajes de éxito y error, página 404 y vista adaptada a móvil.
+- **Estados:** indicador `Loading...`, esqueletos de carga, mensajes de éxito y error, página 404 y diseño adaptado a móvil.
+
+| Atajo | Acción |
+|---|---|
+| `Ctrl+K` | Paleta de comandos y búsqueda de prendas |
+| `N` | Registrar prenda |
+| `/` | Buscar en la lista |
+| `G` y luego `I` / `L` / `R` | Ir a Inicio / Lista / Registro |
+| `Ctrl+S` | Guardar el formulario |
+| `?` | Ayuda de atajos |
 
 ![Inicio](docs/capturas/01-home.png)
 

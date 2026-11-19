@@ -1,11 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
 import { PRENDA_VACIA, STOCK_MINIMO, TALLAS, TELAS, TIPOS } from '../constants/prendas.js'
-import { formatearPrecio } from '../utils/formato.js'
+import { SUGERENCIAS_COLOR } from '../utils/colores.js'
+import { slugTela } from '../utils/inventario.js'
 import { validarPrenda } from '../utils/validarPrenda.js'
 import AlertMessage from './AlertMessage.jsx'
+import MuestraTela from './MuestraTela.jsx'
+import TarjetaPrenda from './TarjetaPrenda.jsx'
+import { Tecla } from './Tecla.jsx'
 
 /** Orden de los campos en pantalla: define cuál es el "primer campo inválido". */
 const ORDEN_CAMPOS = ['codigo', 'nombre', 'tipo', 'tela', 'talla', 'color', 'precio', 'stock']
+
+/** Prefijo de código sugerido para cada tipo (POL-001, CAM-001...). */
+const PREFIJOS = {
+  Polo: 'POL',
+  Camisa: 'CAM',
+  Pantalón: 'PAN',
+  Casaca: 'CAS',
+  Vestido: 'VES',
+  Polera: 'PLR',
+  Short: 'SHO',
+}
+
+/** Colores frecuentes que se ofrecen como atajo bajo el campo Color. */
+const COLORES_RAPIDOS = [
+  'Blanco',
+  'Negro',
+  'Azul marino',
+  'Gris jaspeado',
+  'Beige',
+  'Celeste',
+  'Guinda',
+  'Verde olivo',
+]
 
 /** Convierte una prenda (de la API o un borrador) en valores de texto para los inputs. */
 function aValoresFormulario(prenda) {
@@ -15,6 +42,18 @@ function aValoresFormulario(prenda) {
     valores[campo] = valor === undefined || valor === null ? '' : String(valor)
   }
   return valores
+}
+
+/** Siguiente código libre para un tipo, a partir de los códigos ya registrados. */
+function sugerirCodigo(tipo, codigosExistentes) {
+  const prefijo = PREFIJOS[tipo]
+  if (!prefijo) return ''
+  const usados = new Set(codigosExistentes.map((codigo) => String(codigo).toUpperCase()))
+  for (let numero = 1; numero < 1000; numero += 1) {
+    const codigo = `${prefijo}-${String(numero).padStart(3, '0')}`
+    if (!usados.has(codigo)) return codigo
+  }
+  return ''
 }
 
 /**
@@ -47,7 +86,8 @@ function PrendaForm({
 
   // useRef guarda referencias a elementos del DOM sin provocar renders:
   // codigoRef enfoca "Código" al montar y tras limpiar/guardar; formRef permite
-  // enfocar el primer campo inválido por su atributo name al enviar con errores.
+  // enfocar el primer campo inválido por su atributo name al enviar con errores
+  // y enviar el formulario con Ctrl+S.
   const codigoRef = useRef(null)
   const formRef = useRef(null)
   // Marca pendiente: el foco se mueve cuando el formulario ya no está deshabilitado.
@@ -64,6 +104,18 @@ function PrendaForm({
     }
   })
 
+  // Ctrl+S (⌘S en macOS) guarda el formulario desde cualquier campo.
+  useEffect(() => {
+    function manejarTecla(evento) {
+      if ((evento.ctrlKey || evento.metaKey) && evento.key.toLowerCase() === 's') {
+        evento.preventDefault()
+        formRef.current?.requestSubmit()
+      }
+    }
+    window.addEventListener('keydown', manejarTecla)
+    return () => window.removeEventListener('keydown', manejarTecla)
+  }, [])
+
   // Si la página cambia la prenda inicial (ej. termina de cargar en modo edición), se rellena.
   // Se ajusta el estado durante el render, como recomienda React, en lugar de usar un efecto.
   const [prendaPrevia, setPrendaPrevia] = useState(prendaInicial)
@@ -77,18 +129,38 @@ function PrendaForm({
 
   const validar = (datos) => validarPrenda(datos, { codigosExistentes })
 
-  function manejarCambio(evento) {
-    const { name, value } = evento.target
+  /** Cambia un campo y revalida si ya se mostró su estado. */
+  function cambiarCampo(name, value) {
     const nuevos = { ...valores, [name]: name === 'codigo' ? value.toUpperCase() : value }
     setValores(nuevos)
     onCambio?.(nuevos)
     if (tocados[name] || intentoEnvio) setErrores(validar(nuevos))
   }
 
+  // onChange genérico: sirve para todos los campos gracias a su atributo name.
+  function manejarCambio(evento) {
+    const { name, value } = evento.target
+    cambiarCampo(name, value)
+  }
+
   function manejarBlur(evento) {
     const { name } = evento.target
     setTocados((anteriores) => ({ ...anteriores, [name]: true }))
     setErrores(validar(valores))
+  }
+
+  function marcarYCambiar(name, value) {
+    setTocados((anteriores) => ({ ...anteriores, [name]: true }))
+    const nuevos = { ...valores, [name]: value }
+    setValores(nuevos)
+    onCambio?.(nuevos)
+    setErrores(validar(nuevos))
+  }
+
+  function ajustarStock(delta) {
+    const actual = Number.parseInt(valores.stock, 10)
+    const base = Number.isFinite(actual) ? actual : 0
+    marcarYCambiar('stock', String(Math.max(0, base + delta)))
   }
 
   function limpiar() {
@@ -109,7 +181,10 @@ function PrendaForm({
 
     const primerInvalido = ORDEN_CAMPOS.find((campo) => encontrados[campo])
     if (primerInvalido) {
-      formRef.current?.elements.namedItem(primerInvalido)?.focus()
+      const elemento = formRef.current?.elements.namedItem(primerInvalido)
+      // Los grupos de opciones (tipo, tela, talla) devuelven una lista de radios.
+      const destino = elemento instanceof RadioNodeList ? elemento[0] : elemento
+      destino?.focus()
       return
     }
 
@@ -125,21 +200,67 @@ function PrendaForm({
     if (!mostrar(campo)) return ''
     return errores[campo] ? 'is-invalid' : 'is-valid'
   }
-  const propsCampo = (campo) => ({
+  const describir = (campo, ayuda) =>
+    [ayuda, mostrar(campo) && errores[campo] ? `prenda-${campo}-error` : null]
+      .filter(Boolean)
+      .join(' ') || undefined
+  const propsCampo = (campo, ayuda) => ({
     id: `prenda-${campo}`,
     name: campo,
     value: valores[campo],
     onChange: manejarCambio,
     onBlur: manejarBlur,
     'aria-invalid': mostrar(campo) && Boolean(errores[campo]),
-    'aria-describedby': mostrar(campo) && errores[campo] ? `prenda-${campo}-error` : undefined,
+    'aria-describedby': describir(campo, ayuda),
   })
-  const error = (campo) =>
+  const error = (campo, enBloque = false) =>
     mostrar(campo) && errores[campo] ? (
-      <div id={`prenda-${campo}-error`} className="invalid-feedback">
+      <div id={`prenda-${campo}-error`} className={`invalid-feedback ${enBloque ? 'd-block' : ''}`}>
         {errores[campo]}
       </div>
     ) : null
+
+  /** Grupo de opciones tipo "chip" (radios con aspecto de botón). */
+  const grupoOpciones = (
+    campo,
+    etiqueta,
+    opciones,
+    { conTela = false, segmentado = false } = {},
+  ) => (
+    <fieldset
+      className={`tx-grupo ${mostrar(campo) && errores[campo] ? 'tx-grupo-invalido' : ''}`}
+      aria-describedby={describir(campo)}
+    >
+      <legend className="form-label">{etiqueta}</legend>
+      <div className={segmentado ? 'tx-tallas' : 'tx-opciones'}>
+        {opciones.map((opcion) => {
+          const id = `prenda-${campo}-${opcion.normalize('NFD').replace(/[^\w]/g, '')}`
+          return (
+            <span key={opcion} className="tx-opcion">
+              <input
+                type="radio"
+                className={`btn-check ${clase(campo)}`}
+                id={id}
+                name={campo}
+                value={opcion}
+                checked={valores[campo] === opcion}
+                onChange={manejarCambio}
+                onBlur={manejarBlur}
+                aria-invalid={mostrar(campo) && Boolean(errores[campo])}
+              />
+              <label htmlFor={id} className={segmentado ? 'tx-talla-opcion' : 'tx-chip-opcion'}>
+                {conTela && (
+                  <span className={`tx-mini-tela tx-tela-${slugTela(opcion)}`} aria-hidden="true" />
+                )}
+                {opcion}
+              </label>
+            </span>
+          )
+        })}
+      </div>
+      {error(campo, true)}
+    </fieldset>
+  )
 
   const cantidadErrores = Object.keys(errores).length
   const mensajeErrores =
@@ -147,239 +268,250 @@ function PrendaForm({
       ? `Revisa el formulario: ${cantidadErrores === 1 ? 'hay 1 campo' : `hay ${cantidadErrores} campos`} por corregir.`
       : ''
 
+  const codigoSugerido =
+    !valores.codigo && valores.tipo ? sugerirCodigo(valores.tipo, codigosExistentes) : ''
+
   return (
-    <form ref={formRef} onSubmit={manejarEnvio} noValidate>
+    <form ref={formRef} onSubmit={manejarEnvio} noValidate className="tx-formulario">
       <AlertMessage tipo="danger" mensaje={mensajeErrores} />
 
-      <div className="row g-4 align-items-start">
-        <div className="col-lg-8">
-          <fieldset disabled={cargando} className="card">
-            <legend className="visually-hidden">Datos de la prenda</legend>
+      <div className="tx-formulario-rejilla">
+        <fieldset disabled={cargando} className="tx-formulario-campos">
+          <legend className="visually-hidden">Datos de la prenda</legend>
 
-            <div className="card-body p-3 p-md-4">
-              <h3 className="h6 text-body-secondary mb-3">Identificación</h3>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label htmlFor="prenda-codigo" className="form-label">
-                    Código
-                  </label>
-                  <input
-                    ref={codigoRef}
-                    type="text"
-                    className={`form-control textil-codigo ${clase('codigo')}`}
-                    placeholder="POL-001"
-                    maxLength={7}
-                    autoComplete="off"
-                    spellCheck={false}
-                    {...propsCampo('codigo')}
-                  />
-                  {error('codigo') ?? <div className="form-text">3 letras, guion y 3 números.</div>}
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="prenda-nombre" className="form-label">
-                    Nombre
-                  </label>
-                  <input
-                    type="text"
-                    className={`form-control ${clase('nombre')}`}
-                    placeholder="Polo básico cuello redondo"
-                    maxLength={60}
-                    autoComplete="off"
-                    {...propsCampo('nombre')}
-                  />
-                  {error('nombre')}
+          <section className="tx-seccion" aria-labelledby="seccion-identificacion">
+            <h3 id="seccion-identificacion" className="tx-seccion-titulo">
+              Identificación
+            </h3>
+            <div className="row g-3">
+              <div className="col-sm-5">
+                <label htmlFor="prenda-codigo" className="form-label">
+                  Código
+                </label>
+                <input
+                  ref={codigoRef}
+                  type="text"
+                  className={`form-control tx-input-codigo ${clase('codigo')}`}
+                  placeholder="POL-001"
+                  maxLength={7}
+                  autoComplete="off"
+                  spellCheck={false}
+                  {...propsCampo('codigo', 'prenda-codigo-ayuda')}
+                />
+                {error('codigo')}
+                <div id="prenda-codigo-ayuda" className="form-text">
+                  {codigoSugerido ? (
+                    <>
+                      Libre para {valores.tipo}:{' '}
+                      <button
+                        type="button"
+                        className="tx-enlace-boton"
+                        onClick={() => marcarYCambiar('codigo', codigoSugerido)}
+                      >
+                        usar {codigoSugerido}
+                      </button>
+                    </>
+                  ) : (
+                    '3 letras, guion y 3 números.'
+                  )}
                 </div>
               </div>
-
-              <hr className="my-4" />
-
-              <h3 className="h6 text-body-secondary mb-3">Características</h3>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label htmlFor="prenda-tipo" className="form-label">
-                    Tipo
-                  </label>
-                  <select className={`form-select ${clase('tipo')}`} {...propsCampo('tipo')}>
-                    <option value="">Selecciona un tipo</option>
-                    {TIPOS.map((tipo) => (
-                      <option key={tipo} value={tipo}>
-                        {tipo}
-                      </option>
-                    ))}
-                  </select>
-                  {error('tipo')}
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="prenda-tela" className="form-label">
-                    Tela
-                  </label>
-                  <select className={`form-select ${clase('tela')}`} {...propsCampo('tela')}>
-                    <option value="">Selecciona una tela</option>
-                    {TELAS.map((tela) => (
-                      <option key={tela} value={tela}>
-                        {tela}
-                      </option>
-                    ))}
-                  </select>
-                  {error('tela')}
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="prenda-talla" className="form-label">
-                    Talla
-                  </label>
-                  <select className={`form-select ${clase('talla')}`} {...propsCampo('talla')}>
-                    <option value="">Selecciona una talla</option>
-                    {TALLAS.map((talla) => (
-                      <option key={talla} value={talla}>
-                        {talla}
-                      </option>
-                    ))}
-                  </select>
-                  {error('talla')}
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="prenda-color" className="form-label">
-                    Color
-                  </label>
-                  <input
-                    type="text"
-                    className={`form-control ${clase('color')}`}
-                    placeholder="Azul marino"
-                    maxLength={30}
-                    autoComplete="off"
-                    {...propsCampo('color')}
-                  />
-                  {error('color')}
-                </div>
-              </div>
-
-              <hr className="my-4" />
-
-              <h3 className="h6 text-body-secondary mb-3">Precio y stock</h3>
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label htmlFor="prenda-precio" className="form-label">
-                    Precio
-                  </label>
-                  <div className="input-group has-validation">
-                    <span className="input-group-text">S/</span>
-                    <input
-                      type="number"
-                      className={`form-control ${clase('precio')}`}
-                      placeholder="39.90"
-                      min="0.01"
-                      step="0.01"
-                      inputMode="decimal"
-                      {...propsCampo('precio')}
-                    />
-                    {error('precio')}
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <label htmlFor="prenda-stock" className="form-label">
-                    Stock
-                  </label>
-                  <div className="input-group has-validation">
-                    <input
-                      type="number"
-                      className={`form-control ${clase('stock')}`}
-                      placeholder="25"
-                      min="0"
-                      step="1"
-                      inputMode="numeric"
-                      {...propsCampo('stock')}
-                    />
-                    <span className="input-group-text">unidades</span>
-                    {error('stock')}
-                  </div>
+              <div className="col-sm-7">
+                <label htmlFor="prenda-nombre" className="form-label">
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  className={`form-control ${clase('nombre')}`}
+                  placeholder="Polo básico cuello redondo"
+                  maxLength={60}
+                  autoComplete="off"
+                  {...propsCampo('nombre', 'prenda-nombre-ayuda')}
+                />
+                {error('nombre')}
+                <div id="prenda-nombre-ayuda" className="form-text d-flex justify-content-between">
+                  <span>Entre 3 y 60 caracteres.</span>
+                  <span className="tx-cifras-tabla" aria-hidden="true">
+                    {valores.nombre.trim().length}/60
+                  </span>
                 </div>
               </div>
             </div>
-          </fieldset>
+          </section>
 
-          <div className="d-flex flex-wrap gap-2 mt-3">
-            <button
-              type="submit"
-              onMouseDown={evitarBlurPrevio}
-              className="btn btn-primary d-inline-flex align-items-center justify-content-center gap-2 px-4 flex-grow-1 flex-sm-grow-0"
-              disabled={cargando}
-            >
-              {cargando ? (
-                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-              ) : (
-                <i className="bi bi-check2" aria-hidden="true" />
-              )}
-              {cargando ? 'Guardando...' : textoBoton}
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
-              onMouseDown={evitarBlurPrevio}
-              onClick={limpiar}
-              disabled={cargando}
-            >
-              <i className="bi bi-eraser" aria-hidden="true" />
-              Limpiar
-            </button>
-            {onCancel && (
-              <button
-                type="button"
-                className="btn btn-link link-secondary ms-sm-auto"
-                onClick={onCancel}
-                disabled={cargando}
-              >
-                Cancelar
-              </button>
-            )}
+          <section className="tx-seccion" aria-labelledby="seccion-clasificacion">
+            <h3 id="seccion-clasificacion" className="tx-seccion-titulo">
+              Clasificación
+            </h3>
+            <div className="d-grid gap-4">
+              {grupoOpciones('tipo', 'Tipo', TIPOS)}
+              {grupoOpciones('tela', 'Tela', TELAS, { conTela: true })}
+              {grupoOpciones('talla', 'Talla', TALLAS, { segmentado: true })}
+            </div>
+          </section>
+
+          <section className="tx-seccion" aria-labelledby="seccion-color">
+            <h3 id="seccion-color" className="tx-seccion-titulo">
+              Color
+            </h3>
+            <label htmlFor="prenda-color" className="form-label">
+              Nombre del color
+            </label>
+            <div className="input-group has-validation">
+              <span className="input-group-text tx-color-muestra">
+                <MuestraTela color={valores.color} tela={valores.tela} forma="chip" />
+              </span>
+              <input
+                type="text"
+                className={`form-control ${clase('color')}`}
+                placeholder="Azul marino"
+                maxLength={30}
+                autoComplete="off"
+                list="sugerencias-color"
+                {...propsCampo('color', 'prenda-color-ayuda')}
+              />
+              {error('color')}
+            </div>
+            <datalist id="sugerencias-color">
+              {SUGERENCIAS_COLOR.map((color) => (
+                <option key={color} value={color} />
+              ))}
+            </datalist>
+            <p id="prenda-color-ayuda" className="form-text mb-2">
+              Escribe el color como lo nombran en el taller; la muestra se actualiza al escribir.
+            </p>
+            <div className="tx-colores-rapidos" role="group" aria-label="Colores frecuentes">
+              {COLORES_RAPIDOS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className="tx-color-rapido"
+                  aria-pressed={valores.color === color}
+                  onClick={() => marcarYCambiar('color', color)}
+                >
+                  <MuestraTela color={color} forma="punto" />
+                  {color}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="tx-seccion" aria-labelledby="seccion-precio">
+            <h3 id="seccion-precio" className="tx-seccion-titulo">
+              Precio y stock
+            </h3>
+            <div className="row g-3">
+              <div className="col-sm-6">
+                <label htmlFor="prenda-precio" className="form-label">
+                  Precio de venta
+                </label>
+                <div className="input-group has-validation">
+                  <span className="input-group-text tx-prefijo">S/</span>
+                  <input
+                    type="text"
+                    className={`form-control tx-cifras-tabla ${clase('precio')}`}
+                    placeholder="39.90"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    {...propsCampo('precio')}
+                  />
+                  {error('precio')}
+                </div>
+              </div>
+              <div className="col-sm-6">
+                <label htmlFor="prenda-stock" className="form-label">
+                  Stock
+                </label>
+                <div className="input-group has-validation tx-stepper">
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => ajustarStock(-1)}
+                    disabled={cargando || !(Number.parseInt(valores.stock, 10) > 0)}
+                    aria-label="Restar una unidad"
+                  >
+                    <i className="bi bi-dash-lg" aria-hidden="true" />
+                  </button>
+                  <input
+                    type="number"
+                    className={`form-control text-center tx-cifras-tabla ${clase('stock')}`}
+                    placeholder="25"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    {...propsCampo('stock', 'prenda-stock-ayuda')}
+                  />
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => ajustarStock(1)}
+                    disabled={cargando}
+                    aria-label="Sumar una unidad"
+                  >
+                    <i className="bi bi-plus-lg" aria-hidden="true" />
+                  </button>
+                  {error('stock')}
+                </div>
+                <div id="prenda-stock-ayuda" className="form-text">
+                  Unidades disponibles. Menos de {STOCK_MINIMO} se marca como stock bajo.
+                </div>
+              </div>
+            </div>
+          </section>
+        </fieldset>
+
+        <aside className="tx-vista-previa" aria-label="Vista previa en la galería">
+          <p className="tx-vista-previa-titulo" aria-hidden="true">
+            Así se verá en la galería
+          </p>
+          <div aria-hidden="true">
+            <TarjetaPrenda prenda={valores} minimo={STOCK_MINIMO} vistaPrevia />
           </div>
-        </div>
+        </aside>
+      </div>
 
-        <div className="col-lg-4 d-none d-lg-block sticky-lg-top" style={{ top: '5rem' }}>
-          <EtiquetaPrenda valores={valores} />
-        </div>
+      <div className="tx-formulario-acciones">
+        <button
+          type="submit"
+          onMouseDown={evitarBlurPrevio}
+          className="btn btn-primary tx-boton-guardar"
+          disabled={cargando}
+          aria-keyshortcuts="Control+S"
+        >
+          {cargando ? (
+            <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+          ) : (
+            <i className="bi bi-check2" aria-hidden="true" />
+          )}
+          <span>{cargando ? 'Guardando...' : textoBoton}</span>
+          {!cargando && (
+            <Tecla mod className="tx-tecla-en-boton d-none d-md-inline-flex">
+              S
+            </Tecla>
+          )}
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+          onMouseDown={evitarBlurPrevio}
+          onClick={limpiar}
+          disabled={cargando}
+        >
+          <i className="bi bi-eraser" aria-hidden="true" />
+          Limpiar
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            className="btn btn-link link-secondary ms-md-auto"
+            onClick={onCancel}
+            disabled={cargando}
+          >
+            Cancelar
+          </button>
+        )}
       </div>
     </form>
-  )
-}
-
-/** Vista previa en forma de etiqueta colgante que se actualiza mientras se escribe. */
-function EtiquetaPrenda({ valores }) {
-  const stock = valores.stock === '' ? null : Number(valores.stock)
-  const stockBajo = Number.isInteger(stock) && stock >= 0 && stock < STOCK_MINIMO
-  const detalle = [valores.tipo, valores.tela].filter(Boolean).join(' · ')
-
-  return (
-    <aside aria-label="Vista previa de la etiqueta">
-      <p className="small text-body-secondary mb-2">Vista previa de la etiqueta</p>
-      <div className="textil-etiqueta" aria-hidden="true">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <span className="textil-codigo text-body-secondary">{valores.codigo || 'AAA-000'}</span>
-          {valores.talla ? (
-            <span className="textil-talla">{valores.talla}</span>
-          ) : (
-            <span className="textil-talla text-body-secondary border-secondary-subtle">—</span>
-          )}
-        </div>
-        <p
-          className={`textil-serif fs-4 lh-sm mb-1 text-break ${valores.nombre ? '' : 'text-body-secondary'}`}
-        >
-          {valores.nombre || 'Nombre de la prenda'}
-        </p>
-        <p className="small text-body-secondary mb-0">{detalle || 'Tipo · Tela'}</p>
-        <p className="small text-body-secondary mb-4">Color: {valores.color || '—'}</p>
-        <div className="d-flex justify-content-between align-items-end pt-3 border-top border-secondary-subtle">
-          <span className="textil-cifra fs-2">{formatearPrecio(valores.precio)}</span>
-          <span className="small text-end">
-            {stock === null || Number.isNaN(stock) ? '— unid.' : `${stock} unid.`}
-            {stockBajo && (
-              <span className="d-block badge bg-warning-subtle text-warning-emphasis mt-1">
-                Stock bajo
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-    </aside>
   )
 }
 

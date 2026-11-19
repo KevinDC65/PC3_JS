@@ -189,6 +189,13 @@
         editarlas y eliminarlas. Los datos se guardan en un servidor REST simulado con
         <code>json-server</code> a partir del archivo <code>db.json</code>.
       </p>
+      <p>
+        La interfaz funciona como una aplicación de trabajo: barra lateral de navegación (barra
+        inferior en el celular), búsqueda global y comandos con <code>Ctrl+K</code>, atajos de
+        teclado, notificaciones de confirmación, vista de la lista en tabla o en galería con
+        muestras de color y tela, y detalle de cada prenda en un panel lateral. Incluye tema claro
+        y oscuro.
+      </p>
       <p>Cada prenda tiene la siguiente estructura:</p>
       <table>
         <tr>
@@ -271,32 +278,40 @@
       <pre><code>PC3_JS/
 ├── db.json                   Datos de prueba (colección "prendas")
 ├── src/
-│   ├── main.jsx              Punto de entrada: Bootstrap, Router y AppProvider
-│   ├── App.jsx               Encabezado, navegación, rutas y pie de página
-│   ├── index.css             Paleta y estilos globales
+│   ├── main.jsx              Punto de entrada: Bootstrap, Router y proveedores
+│   ├── App.jsx               Shell de la aplicación y definición de rutas
+│   ├── index.css             Tokens de diseño (tema claro y oscuro)
+│   ├── styles/               Estilos: base, shell, capas, telas y vistas
 │   ├── components/
-│   │   ├── Header.jsx        Título de la aplicación
-│   │   ├── Navbar.jsx        Enlaces (NavLink), tema y sesión
+│   │   ├── Header.jsx        Título de la aplicación, migas y buscador
+│   │   ├── Navbar.jsx        Barra lateral y barra móvil (NavLink)
 │   │   ├── Footer.jsx        Pie de página
 │   │   ├── PrendaForm.jsx    Formulario controlado reutilizable (props)
 │   │   ├── AlertMessage.jsx  Mensajes de confirmación y error
 │   │   ├── Loading.jsx       Indicador "Loading..."
-│   │   ├── Modal.jsx         Base de ventanas modales
-│   │   ├── ConfirmModal.jsx  Confirmación de eliminación y detalle
-│   │   └── LoginModal.jsx    Inicio de sesión simulado
+│   │   ├── TablaPrendas.jsx  Tabla ordenable con selección múltiple
+│   │   ├── TarjetaPrenda.jsx Tarjeta de la galería y vista previa
+│   │   ├── DetallePrenda.jsx Detalle en panel lateral (Drawer.jsx)
+│   │   ├── ConfirmModal.jsx  Confirmación de eliminación
+│   │   ├── LoginModal.jsx    Inicio de sesión simulado
+│   │   ├── PaletaComandos.jsx  Búsqueda y comandos con Ctrl+K
+│   │   └── ...               Modal, gráficos, estados vacíos, etc.
 │   ├── pages/
 │   │   ├── Home.jsx          Resumen del inventario
 │   │   ├── Registro.jsx      Alta y edición de prendas
-│   │   ├── Lista.jsx         Listado, filtros y eliminación
+│   │   ├── Lista.jsx         Tabla/galería, filtros y eliminación
 │   │   └── NotFound.jsx      Página 404
 │   ├── context/
-│   │   └── AppContext.jsx    Usuario, tema y configuración (useContext)
+│   │   ├── AppContext.jsx    Usuario, tema y configuración (useContext)
+│   │   ├── ShellProvider.jsx Paneles abiertos y navegación protegida
+│   │   └── ToastProvider.jsx Notificaciones
 │   ├── hooks/
-│   │   └── useLocalStorage.js  Custom hook de persistencia
+│   │   ├── useLocalStorage.js  Custom hook de persistencia
+│   │   └── ...               Atajos, foco en modales, cambios sin guardar
 │   ├── services/
 │   │   └── apiService.js     Operaciones REST con Axios
 │   ├── constants/prendas.js  Tipos, telas, tallas y stock mínimo
-│   └── utils/                Validación y formato de datos
+│   └── utils/                Validación, formato, colores e inventario
 └── docs/                     Capturas e informe</code></pre>
 
       <h3>Responsabilidad de cada carpeta</h3>
@@ -352,12 +367,17 @@
         <code>onSubmit</code>, <code>textoBoton</code>, <code>cargando</code> y
         <code>codigosExistentes</code>.
       </p>
-      <pre><code>// En PrendaForm.jsx
-function manejarCambio(evento) {
-  const { name, value } = evento.target
+      <pre><code>// En PrendaForm.jsx: un solo objeto de estado para todos los campos
+function cambiarCampo(name, value) {
   const nuevos = { ...valores, [name]: name === 'codigo' ? value.toUpperCase() : value }
   setValores(nuevos)
   onCambio?.(nuevos)
+}
+
+// onChange genérico: sirve para todos los campos gracias a su atributo name
+function manejarCambio(evento) {
+  const { name, value } = evento.target
+  cambiarCampo(name, value)
 }
 
 // En Registro.jsx (modo edición)
@@ -367,7 +387,8 @@ function manejarCambio(evento) {
   textoBoton="Guardar cambios"
   cargando={guardando}
   codigosExistentes={codigos}
-  onCancel={() =&gt; navigate('/lista')}
+  onCambio={setValores}
+  onCancel={() =&gt; navegarSeguro('/lista')}
 /&gt;</code></pre>
 
       <h3>Validaciones</h3>
@@ -402,7 +423,10 @@ function manejarCambio(evento) {
 useEffect(() =&gt; { codigoRef.current?.focus() }, [])
 
 // Al enviar con errores:
-formRef.current?.elements.namedItem(primerInvalido)?.focus()</code></pre>
+const elemento = formRef.current?.elements.namedItem(primerInvalido)
+// Los grupos de opciones (tipo, tela, talla) devuelven una lista de radios.
+const destino = elemento instanceof RadioNodeList ? elemento[0] : elemento
+destino?.focus()</code></pre>
 
       <h3>useContext</h3>
       <p>
@@ -543,13 +567,13 @@ export async function remove(id) {
       <figure>
         <img src="../capturas/01-home.png" alt="Página de inicio" />
         <figcaption>
-          Figura 1. Inicio: resumen del inventario, prendas por reponer y unidades por tipo.
+          Figura 1. Inicio: indicadores, unidades por tipo y talla, y prendas por reponer.
         </figcaption>
       </figure>
       <figure>
         <img src="../capturas/06-lista.png" alt="Lista de prendas" />
         <figcaption>
-          Figura 2. Lista de prendas con búsqueda, filtros, orden y acciones por fila.
+          Figura 2. Lista en vista tabla: orden por columna, filtros, selección y acciones por fila.
         </figcaption>
       </figure>
     </section>
@@ -604,7 +628,7 @@ export async function remove(id) {
       </div>
       <figure class="movil">
         <img src="../capturas/11-movil.png" alt="Vista móvil" />
-        <figcaption>Figura 13. Vista móvil con el menú desplegado.</figcaption>
+        <figcaption>Figura 13. Vista móvil con la barra inferior y el menú "Más".</figcaption>
       </figure>
     </section>
 
